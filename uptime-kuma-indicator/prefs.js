@@ -1,6 +1,5 @@
-'use strict';
+import * as ExtensionUtils from 'resource:///org/gnome/Shell/Extensions/js/misc/extensionUtils.js';
 
-const ExtensionUtils = imports.misc.extensionUtils;
 const Gettext = imports.gettext;
 const _ = Gettext.gettext;
 
@@ -24,16 +23,16 @@ const SECRET_SCHEMA = Secret ? new Secret.Schema('org.gnome.shell.extensions.kum
 }) : null;
 const SECRET_KEY_ATTRIBUTE = 'api-key';
 
-function init() {
+export function init() {
     ExtensionUtils.initTranslations('uptime-kuma-indicator');
 }
 
-function fillPreferencesWindow(window) {
+export function fillPreferencesWindow(window) {
     const settings = ExtensionUtils.getSettings();
     new PreferencesBuilder(settings, window);
 }
 
-function buildPrefsWidget() {
+export function buildPrefsWidget() {
     const settings = ExtensionUtils.getSettings();
     const builder = new PreferencesBuilder(settings, null);
     return builder.widget;
