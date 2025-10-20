@@ -1,41 +1,48 @@
-import * as ExtensionUtils from 'resource:///org/gnome/Shell/Extensions/js/misc/extensionUtils.js';
+import Gtk from 'gi://Gtk?version=4.0';
+import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import { _ } from './utils/i18n.js';
 
-const Gettext = imports.gettext;
-const _ = Gettext.gettext;
-
-const { Gio, GLib, GObject, Gtk } = imports.gi;
 let Adw = null;
-try {
-    Adw = imports.gi.Adw;
-} catch (error) {
-    log('[kuma-indicator] libadwaita unavailable: ' + error.message);
-}
-
 let Secret = null;
-try {
-    Secret = imports.gi.Secret;
-} catch (error) {
-    log('[kuma-indicator] Secret service unavailable in prefs: ' + error.message);
-}
+let SECRET_SCHEMA = null;
 
-const SECRET_SCHEMA = Secret ? new Secret.Schema('org.gnome.shell.extensions.kuma', Secret.SchemaFlags.NONE, {
-    id: Secret.SchemaAttributeType.STRING,
-}) : null;
+function initLibs() {
+    if (Adw && Secret) return;
+    
+    try {
+        Adw = imports.gi.Adw;
+    } catch (error) {
+        log('[kuma-indicator] libadwaita unavailable: ' + error.message);
+    }
+
+    try {
+        Secret = imports.gi.Secret;
+        if (Secret) {
+            SECRET_SCHEMA = new Secret.Schema('org.gnome.shell.extensions.kuma', Secret.SchemaFlags.NONE, {
+                id: Secret.SchemaAttributeType.STRING,
+            });
+        }
+    } catch (error) {
+        log('[kuma-indicator] Secret service unavailable in prefs: ' + error.message);
+    }
+}
 const SECRET_KEY_ATTRIBUTE = 'api-key';
 
-export function init() {
-    ExtensionUtils.initTranslations('uptime-kuma-indicator');
-}
+export default class UptimeKumaPreferences extends ExtensionPreferences {
+    fillPreferencesWindow(window) {
+        initLibs();
+        const settings = this.getSettings();
+        const builder = new PreferencesBuilder(settings, window);
+        if (!Adw && builder.widget)
+            window.add(builder.widget);
+    }
 
-export function fillPreferencesWindow(window) {
-    const settings = ExtensionUtils.getSettings();
-    new PreferencesBuilder(settings, window);
-}
-
-export function buildPrefsWidget() {
-    const settings = ExtensionUtils.getSettings();
-    const builder = new PreferencesBuilder(settings, null);
-    return builder.widget;
+    getPreferencesWidget() {
+        initLibs();
+        const settings = this.getSettings();
+        const builder = new PreferencesBuilder(settings, null);
+        return builder.widget;
+    }
 }
 
 class PreferencesBuilder {
@@ -49,11 +56,10 @@ class PreferencesBuilder {
     }
 
     _build() {
-        if (Adw) {
+        if (Adw)
             this._buildAdw();
-        } else {
+        else
             this._buildGtk();
-        }
     }
 
     _buildAdw() {
@@ -144,9 +150,9 @@ class PreferencesBuilder {
         this._apiModeWidgets.set('api-endpoint', apiEndpointRow);
 
         const apiRow = new Adw.ActionRow({ title: _('API token'), subtitle: this._secretAvailable ? _('Stored securely using Secret Service.') : _('Secret Service is unavailable; token cannot be saved securely.') });
-    const tokenEntry = new Gtk.PasswordEntry({ placeholder_text: _('Enter new token'), width_chars: 28, show_peek_icon: true, sensitive: this._secretAvailable });
+        const tokenEntry = new Gtk.PasswordEntry({ placeholder_text: _('Enter new token'), width_chars: 28, show_peek_icon: true, sensitive: this._secretAvailable });
         tokenEntry.connect('activate', () => this._storeApiKey(tokenEntry.text));
-    const saveButton = new Gtk.Button({ label: _('Save'), sensitive: this._secretAvailable && tokenEntry.text.length > 0 });
+        const saveButton = new Gtk.Button({ label: _('Save'), sensitive: this._secretAvailable && tokenEntry.text.length > 0 });
         saveButton.connect('clicked', () => {
             this._storeApiKey(tokenEntry.text);
             tokenEntry.text = '';

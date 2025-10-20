@@ -9,7 +9,7 @@ GNOME Shell extension (GNOME 46–48) that embeds uptime information from your U
 - Supports public status page JSON _and_ the authenticated REST API with Secret Service storage for the token.
 - Configurable refresh cadence, appearance, list length, and logging verbosity.
 - Graceful error handling with informative tooltips and optional demo data for UI testing.
-- Fully localized using GNU gettext (English & German included).
+- Fully localized using GNU gettext (English, German, Swedish, and Japanese included).
 
 ## 📦 Requirements
 
@@ -18,6 +18,16 @@ GNOME Shell extension (GNOME 46–48) that embeds uptime information from your U
 - Uptime Kuma instance (0.10+) with either public status page JSON or API access
 
 ## 🚀 Installation
+
+Quick install from the project root:
+
+```bash
+make install
+```
+
+Then reload GNOME Shell (see below) so the changes take effect.
+
+Manual steps if you prefer to copy the files yourself:
 
 1. Copy the extension directory into your local extensions folder:
 

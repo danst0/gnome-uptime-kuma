@@ -1,26 +1,27 @@
-'use strict';
-
-const { GLib, Soup } = imports.gi;
-const ByteArray = imports.byteArray;
-const ExtensionUtils = imports.misc.extensionUtils;
-const Gettext = imports.gettext;
-
-const Me = ExtensionUtils.getCurrentExtension();
-const Parsers = Me.imports.utils.parsers;
-
-const _ = Gettext.gettext;
+import GLib from 'gi://GLib';
+import Soup from 'gi://Soup?version=3.0';
+import { normalizeApi, normalizeStatusPage } from './parsers.js';
+import { _ } from './i18n.js';
 
 const DEFAULT_TIMEOUT_SECONDS = 8;
 const DEFAULT_RETRIES = 3;
 const RETRY_BACKOFF = 1.6;
 const USER_AGENT = 'UptimeKumaIndicator/1.0 (GNOME Shell Extension)';
 
-function toString(bytes) {
+function bytesToString(bytes) {
     if (!bytes)
         return '';
-    if (bytes instanceof GLib.Bytes)
-        return ByteArray.toString(bytes.get_data());
-    return ByteArray.toString(bytes);
+    
+    try {
+        if (bytes instanceof GLib.Bytes) {
+            const data = bytes.get_data();
+            return new TextDecoder().decode(data);
+        }
+        return new TextDecoder().decode(bytes);
+    } catch (error) {
+        log('[kuma-indicator] Failed to decode bytes: ' + error.message);
+        return '';
+    }
 }
 
 function joinUrl(base, path) {
@@ -44,7 +45,7 @@ function sleepAsync(milliseconds) {
     });
 }
 
-var MonitorFetcher = class MonitorFetcher {
+export class MonitorFetcher {
     constructor({ timeoutSeconds = DEFAULT_TIMEOUT_SECONDS, retries = DEFAULT_RETRIES, backoff = RETRY_BACKOFF } = {}) {
         this._timeoutSeconds = timeoutSeconds;
         this._retries = retries;
@@ -62,9 +63,9 @@ var MonitorFetcher = class MonitorFetcher {
         const log = helpers.log ?? (() => {});
 
         if (mode === 'status-page')
-            return await this._fetchStatusPage(config, log);
+            return this._fetchStatusPage(config, log);
 
-        return await this._fetchPrivateApi(config, helpers, log);
+        return this._fetchPrivateApi(config, helpers, log);
     }
 
     async _fetchStatusPage(config, log) {
@@ -84,7 +85,7 @@ var MonitorFetcher = class MonitorFetcher {
         log('debug', `Fetching status page from ${url}`);
 
         const json = await this._getJson(url, { headers: { Accept: 'application/json' } });
-        const monitors = Parsers.normalizeStatusPage(json);
+        const monitors = normalizeStatusPage(json);
         return { source: 'status-page', monitors };
     }
 
@@ -108,7 +109,7 @@ var MonitorFetcher = class MonitorFetcher {
                 Authorization: apiKey,
             },
         });
-        const monitors = Parsers.normalizeApi(json);
+        const monitors = normalizeApi(json);
         return { source: 'api', monitors };
     }
 
@@ -132,7 +133,7 @@ var MonitorFetcher = class MonitorFetcher {
                 const status = message.get_status();
 
                 if (status >= 200 && status < 300)
-                    return JSON.parse(toString(bytes));
+                    return JSON.parse(bytesToString(bytes));
 
                 lastError = new Error(`HTTP ${status}`);
             } catch (error) {
@@ -149,4 +150,4 @@ var MonitorFetcher = class MonitorFetcher {
             throw lastError;
         throw new Error(_('Unknown network error'));
     }
-};
+}

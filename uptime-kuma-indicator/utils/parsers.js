@@ -1,14 +1,9 @@
-'use strict';
-
-const { GLib } = imports.gi;
-const Gettext = imports.gettext;
-
-const _ = Gettext.gettext;
-const ngettext = Gettext.ngettext;
+import GLib from 'gi://GLib';
+import { _ } from './i18n.js';
 
 const STATUS_PRIORITY = ['down', 'degraded', 'maintenance', 'unknown', 'up'];
 
-function _normalizeStatus(value) {
+function normalizeStatus(value) {
     if (value === null || value === undefined)
         return 'unknown';
 
@@ -40,7 +35,7 @@ function _normalizeStatus(value) {
     return 'unknown';
 }
 
-function _parseLatency(value) {
+function parseLatency(value) {
     if (value === null || value === undefined)
         return null;
 
@@ -54,7 +49,7 @@ function _parseLatency(value) {
     return Math.round(parsed);
 }
 
-function _parseTimestamp(value) {
+function parseTimestamp(value) {
     if (!value)
         return null;
 
@@ -73,17 +68,17 @@ function _parseTimestamp(value) {
         } catch (error) {
             const parsed = Number.parseInt(value, 10);
             if (!Number.isNaN(parsed))
-                return _parseTimestamp(parsed);
+                return parseTimestamp(parsed);
         }
     }
 
     return null;
 }
 
-function _normalizeMonitor(monitor) {
-    const status = _normalizeStatus(monitor.status ?? monitor.statusClass);
-    const latencyMs = _parseLatency(monitor.ping ?? monitor.latency ?? monitor.responseTime);
-    const lastCheck = _parseTimestamp(monitor.lastCheck ?? monitor.lastHeartbeat ?? monitor.lastUpdated);
+function normalizeMonitor(monitor) {
+    const status = normalizeStatus(monitor.status ?? monitor.statusClass);
+    const latencyMs = parseLatency(monitor.ping ?? monitor.latency ?? monitor.responseTime);
+    const lastCheck = parseTimestamp(monitor.lastCheck ?? monitor.lastHeartbeat ?? monitor.lastUpdated);
     const id = (monitor.id !== undefined && monitor.id !== null) ? String(monitor.id) : (monitor.slug ?? monitor.name ?? GLib.uuid_string_random());
 
     return {
@@ -96,7 +91,7 @@ function _normalizeMonitor(monitor) {
     };
 }
 
-function normalizeStatusPage(payload) {
+export function normalizeStatusPage(payload) {
     const monitors = [];
 
     if (!payload)
@@ -111,13 +106,13 @@ function normalizeStatusPage(payload) {
     for (const item of entries) {
         if (!item)
             continue;
-        monitors.push(_normalizeMonitor(item));
+        monitors.push(normalizeMonitor(item));
     }
 
     return monitors;
 }
 
-function normalizeApi(payload) {
+export function normalizeApi(payload) {
     if (!payload)
         return [];
 
@@ -125,10 +120,10 @@ function normalizeApi(payload) {
     if (!entries)
         return [];
 
-    return entries.map(entry => _normalizeMonitor(entry));
+    return entries.map(entry => normalizeMonitor(entry));
 }
 
-function aggregateMonitors(monitors) {
+export function aggregateMonitors(monitors) {
     const summary = {
         up: 0,
         down: 0,
@@ -169,7 +164,7 @@ function aggregateMonitors(monitors) {
     return summary;
 }
 
-function mockMonitors() {
+export function mockMonitors() {
     const now = GLib.DateTime.new_now_utc();
 
     const create = (overrides = {}) => {
@@ -192,8 +187,3 @@ function mockMonitors() {
         create({ name: _('External Ping'), status: 'unknown', delta: 720 }),
     ];
 }
-
-var normalizeStatusPage = normalizeStatusPage;
-var normalizeApi = normalizeApi;
-var aggregateMonitors = aggregateMonitors;
-var mockMonitors = mockMonitors;

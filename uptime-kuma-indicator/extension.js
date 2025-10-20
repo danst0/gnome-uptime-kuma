@@ -1,24 +1,20 @@
-'use strict';
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import Pango from 'gi://Pango';
+import St from 'gi://St';
 
-const { Clutter, Gio, GLib, GObject, Pango, St } = imports.gi;
-const Main = imports.ui.main;
-const PanelMenu = imports.ui.panelMenu;
-const PopupMenu = imports.ui.popupMenu;
-const ExtensionUtils = imports.misc.extensionUtils;
-const Gettext = imports.gettext;
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+
+import { MonitorFetcher } from './utils/network.js';
+import { aggregateMonitors, mockMonitors } from './utils/parsers.js';
+import { _, ngettext } from './utils/i18n.js';
+
 let Secret = null;
-try {
-    Secret = imports.gi.Secret;
-} catch (error) {
-    log('[kuma-indicator] Secret service unavailable: ' + error.message);
-}
-
-const Me = ExtensionUtils.getCurrentExtension();
-const Network = Me.imports.utils.network;
-const Parsers = Me.imports.utils.parsers;
-
-const _ = Gettext.gettext;
-const ngettext = Gettext.ngettext;
 
 const INDICATOR_NAME = 'uptime-kuma-indicator';
 const STATUS_CLASS_MAP = {
@@ -31,14 +27,27 @@ const STATUS_CLASS_MAP = {
 
 const LOG_LEVELS = ['error', 'info', 'debug'];
 const SECRET_KEY_ATTRIBUTE = 'api-key';
-const SECRET_SCHEMA = Secret ? new Secret.Schema('org.gnome.shell.extensions.kuma', Secret.SchemaFlags.NONE, {
-    id: Secret.SchemaAttributeType.STRING,
-}) : null;
+let SECRET_SCHEMA = null;
 
 const USEC_PER_SEC = 1_000_000;
 const REFRESH_ON_ENABLE_DELAY_MS = 200;
 
-function _toDateTime(value) {
+function initSecret() {
+    if (Secret) return;
+    
+    try {
+        Secret = imports.gi.Secret;
+        if (Secret) {
+            SECRET_SCHEMA = new Secret.Schema('org.gnome.shell.extensions.kuma', Secret.SchemaFlags.NONE, {
+                id: Secret.SchemaAttributeType.STRING,
+            });
+        }
+    } catch (error) {
+        log('[kuma-indicator] Secret service unavailable: ' + error.message);
+    }
+}
+
+function toDateTime(value) {
     if (!value)
         return null;
 
@@ -61,7 +70,7 @@ function _toDateTime(value) {
     return null;
 }
 
-function _formatRelative(deltaSeconds) {
+function formatRelative(deltaSeconds) {
     const abs = Math.max(0, Math.floor(deltaSeconds));
 
     if (abs < 60)
@@ -226,17 +235,18 @@ class ScrollSection extends PopupMenu.PopupBaseMenuItem {
 });
 
 class KumaIndicator extends PanelMenu.Button {
-    constructor() {
+    constructor(metadata, settings) {
         super(0.0, INDICATOR_NAME, false);
 
-        this._settings = ExtensionUtils.getSettings();
+        this._metadata = metadata;
+        this._settings = settings;
         this._settingsConnections = [];
         this._refreshLoopId = 0;
         this._isRefreshing = false;
         this._rows = new Map();
         this._lastRefresh = null;
         this._logLevelIndex = 1;
-        this._fetcher = new Network.MonitorFetcher();
+        this._fetcher = new MonitorFetcher();
 
         this._summaryState = {
             up: 0,
@@ -409,7 +419,7 @@ class KumaIndicator extends PanelMenu.Button {
             let monitors;
             if (this._config.demoMode || !this._config.baseUrl) {
                 this._log('info', 'Using mock monitors (demo mode or missing baseUrl)');
-                monitors = Parsers.mockMonitors();
+                monitors = mockMonitors();
             } else {
                 const payload = await this._fetcher.fetch(this._config, {
                     getApiKey: () => this._lookupApiKey(),
@@ -443,8 +453,8 @@ class KumaIndicator extends PanelMenu.Button {
         };
         this._summaryLabel.text = _('Error');
         this._switchDotClass('unknown');
-    const tooltip = _('Uptime Kuma – error: %s').format(error.message ?? _('Unknown error'));
-    this.set_tooltip_text(tooltip);
+        const tooltip = _('Uptime Kuma – error: %s').format(error.message ?? _('Unknown error'));
+        this.set_tooltip_text(tooltip);
     }
 
     _updateMonitorList(monitors) {
@@ -452,10 +462,10 @@ class KumaIndicator extends PanelMenu.Button {
         const seen = new Set();
 
         monitors.forEach((monitor, index) => {
-            const dt = _toDateTime(monitor.lastCheck);
+            const dt = toDateTime(monitor.lastCheck);
             if (dt) {
                 const diff = now.difference(dt) / USEC_PER_SEC;
-                monitor.relativeLastCheck = _formatRelative(diff);
+                monitor.relativeLastCheck = formatRelative(diff);
             } else {
                 monitor.relativeLastCheck = null;
             }
@@ -488,18 +498,18 @@ class KumaIndicator extends PanelMenu.Button {
     }
 
     _updateSummary(monitors) {
-        const summary = Parsers.aggregateMonitors(monitors);
+        const summary = aggregateMonitors(monitors);
         this._summaryState = summary;
         this._lastRefresh = GLib.DateTime.new_now_local();
 
-    const text = _('%(up)d up / %(down)d down').format({ up: summary.up, down: summary.down });
+        const text = _('%(up)d up / %(down)d down').format({ up: summary.up, down: summary.down });
         this._summaryLabel.text = text;
         this._switchDotClass(summary.status);
     }
 
     _setTooltipFromSummary() {
         if (!this._lastRefresh) {
-        this.set_tooltip_text(_('Uptime Kuma – no data yet'));
+            this.set_tooltip_text(_('Uptime Kuma – no data yet'));
             return;
         }
 
@@ -509,7 +519,7 @@ class KumaIndicator extends PanelMenu.Button {
             down: this._summaryState.down,
             time: timeString,
         });
-    this.set_tooltip_text(tooltip);
+        this.set_tooltip_text(tooltip);
     }
 
     _switchDotClass(status) {
@@ -559,8 +569,8 @@ class KumaIndicator extends PanelMenu.Button {
     }
 
     _showAbout() {
-        const version = Me.metadata.version ?? '1';
-    Main.notify(_('Uptime Kuma Indicator'), _('Version %s').format(version));
+        const version = this._metadata.version ?? '1';
+        Main.notify(_('Uptime Kuma Indicator'), _('Version %s').format(version));
     }
 
     _manualRefresh() {
@@ -574,26 +584,27 @@ class KumaIndicator extends PanelMenu.Button {
 
     _log(level, message) {
         const idx = LOG_LEVELS.indexOf(level);
-        if (idx === -1)
-            level = 'debug';
+        const effectiveLevel = idx === -1 ? 'debug' : level;
         if (idx > this._logLevelIndex)
             return;
 
         const prefix = '[kuma-indicator]';
-        if (level === 'error')
+        if (effectiveLevel === 'error')
             logError(new Error(`${prefix} ${message}`));
         else
-            log(`${prefix} [${level}] ${message}`);
+            log(`${prefix} [${effectiveLevel}] ${message}`);
     }
 }
 
-class Extension {
-    constructor() {
+export default class UptimeKumaIndicatorExtension extends Extension {
+    constructor(metadata) {
+        super(metadata);
         this._indicator = null;
     }
 
     enable() {
-        this._indicator = new KumaIndicator();
+        initSecret();
+        this._indicator = new KumaIndicator(this.metadata, this.getSettings());
         Main.panel.addToStatusArea(INDICATOR_NAME, this._indicator);
         this._indicator.start();
     }
@@ -604,20 +615,4 @@ class Extension {
             this._indicator = null;
         }
     }
-}
-
-function init() {
-    ExtensionUtils.initTranslations('uptime-kuma-indicator');
-}
-
-function enable() {
-    if (!Me._extensionInstance)
-        Me._extensionInstance = new Extension();
-    Me._extensionInstance.enable();
-}
-
-function disable() {
-    if (Me._extensionInstance)
-        Me._extensionInstance.disable();
-    Me._extensionInstance = null;
 }
