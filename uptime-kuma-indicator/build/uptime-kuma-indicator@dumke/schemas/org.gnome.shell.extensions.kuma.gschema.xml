@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.kuma" path="/org/gnome/shell/extensions/kuma/">
+    <key name="base-url" type="s">
+      <default>''</default>
+      <summary>Base URL of the Uptime Kuma instance</summary>
+      <description>The base URL (including protocol) of the Uptime Kuma deployment.</description>
+    </key>
+    <key name="api-mode" type="s">
+      <default>'status-page'</default>
+      <summary>Selected API mode</summary>
+      <description>Choose between status-page mode (public JSON) and api-key mode (private API).</description>
+    </key>
+    <key name="status-page-slug" type="s">
+      <default>'default'</default>
+      <summary>Status page slug</summary>
+      <description>Slug used when constructing the public status page endpoint.</description>
+    </key>
+    <key name="status-page-endpoint" type="s">
+      <default>'status/{{slug}}/status.json'</default>
+      <summary>Status page endpoint template</summary>
+      <description>Endpoint template appended to the base URL. Use {{slug}} as placeholder.</description>
+    </key>
+    <key name="status-page-json-url" type="s">
+      <default>''</default>
+      <summary>Explicit status page JSON URL</summary>
+      <description>Overrides the endpoint template with a full URL.</description>
+    </key>
+    <key name="api-endpoint" type="s">
+      <default>'api/monitor'</default>
+      <summary>Private API endpoint</summary>
+      <description>Relative endpoint used when API key mode is enabled.</description>
+    </key>
+    <key name="refresh-seconds" type="i">
+      <default>60</default>
+      <summary>Refresh interval</summary>
+      <description>Interval in seconds between refreshes. Minimum of 10 seconds.</description>
+    </key>
+    <key name="show-latency" type="b">
+      <default>true</default>
+      <summary>Show latency</summary>
+      <description>Whether latency values should be shown next to each monitor.</description>
+    </key>
+    <key name="max-items" type="i">
+      <default>12</default>
+      <summary>Maximum number of monitors to display</summary>
+      <description>Limits how many monitors are shown in the popup list.</description>
+    </key>
+    <key name="appearance" type="s">
+      <default>'normal'</default>
+      <summary>Indicator appearance</summary>
+      <description>Chooses between normal and compact indicator layout.</description>
+    </key>
+    <key name="log-level" type="s">
+      <default>'info'</default>
+      <summary>Log verbosity</summary>
+      <description>Controls which log messages are emitted.</description>
+    </key>
+    <key name="demo-mode" type="b">
+      <default>true</default>
+      <summary>Enable demo data</summary>
+      <description>Show mock monitors when no base URL is configured.</description>
+    </key>
+  </schema>
+</schemalist>

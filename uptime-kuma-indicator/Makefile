@@ -1,21 +1,27 @@
 UUID := uptime-kuma-indicator@dumke
-EXTENSION_DIR := $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
-COPY_ITEMS := extension.js prefs.js metadata.json stylesheet.css LICENSE README.md utils locale schemas docs
+PACKAGE := $(UUID).shell-extension.zip
+EXTRA_FILES := prefs.js stylesheet.css LICENSE README.md messages.mo
+EXTRA_DIRS := utils docs
+LOCALE_DIR := locale
+SCHEMA_DIR := schemas
 
-.PHONY: install compile-schemas clean
+.PHONY: pack install clean compile-schemas
 
-install: clean
-	@echo "Installing extension into $(EXTENSION_DIR)"
-	install -d "$(EXTENSION_DIR)"
-	cp -r $(COPY_ITEMS) "$(EXTENSION_DIR)"
-	$(MAKE) compile-schemas
+pack: compile-schemas clean
+	@echo "Packing extension into $(PACKAGE)"
+	gnome-extensions pack --force --podir=$(LOCALE_DIR) $(foreach file,$(EXTRA_FILES),--extra-source=$(file)) $(foreach dir,$(EXTRA_DIRS),--extra-source=$(dir)) .
+	zip -qur "$(PACKAGE)" "$(LOCALE_DIR)" "$(SCHEMA_DIR)/gschemas.compiled"
+	@echo "Package created: $(PACKAGE)"
+
+install: pack
+	@echo "Installing extension from $(PACKAGE)"
+	gnome-extensions install --force "$(PACKAGE)"
 	@echo "Extension installed. Reload GNOME Shell to apply changes."
+
+clean:
+	@echo "Removing packaged extension $(PACKAGE)"
+	rm -f "$(PACKAGE)"
 
 compile-schemas:
 	@echo "Compiling GSettings schemas"
-	rm -f "$(EXTENSION_DIR)/schemas/gschemas.compiled"
-	glib-compile-schemas "$(EXTENSION_DIR)/schemas"
-
-clean:
-	@echo "Removing previous install at $(EXTENSION_DIR)"
-	rm -rf "$(EXTENSION_DIR)"
+	glib-compile-schemas "$(SCHEMA_DIR)"

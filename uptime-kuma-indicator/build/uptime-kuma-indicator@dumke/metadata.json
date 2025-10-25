@@ -1,0 +1,10 @@
+{
+  "uuid": "uptime-kuma-indicator@dumke",
+  "name": "Uptime Kuma Indicator",
+  "description": "Zeigt den Status einer Uptime-Kuma-Instanz im Panel.",
+  "shell-version": ["46", "47", "48"],
+  "settings-schema": "org.gnome.shell.extensions.kuma",
+  "gettext-domain": "uptime-kuma-indicator",
+  "version": 1,
+  "url": "https://github.com/dumke/uptime-kuma-indicator"
+}

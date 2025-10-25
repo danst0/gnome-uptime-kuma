@@ -1,0 +1,310 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: uptime-kuma-indicator 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-10-19 00:00+0000\n"
+"PO-Revision-Date: 2025-10-19 21:45+0000\n"
+"Last-Translator: GitHub Copilot <noreply@github.com>\n"
+"Language-Team: Japanese <LL@li.org>\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: extension.js
+msgid "Refresh now"
+msgstr "今すぐ更新"
+
+#: extension.js
+msgid "Open Uptime Kuma"
+msgstr "Uptime Kuma を開く"
+
+#: extension.js
+msgid "Preferences…"
+msgstr "設定…"
+
+#: extension.js
+msgid "About / Version"
+msgstr "概要 / バージョン"
+
+#: extension.js
+msgid "n/a"
+msgstr "該当なし"
+
+#: extension.js
+msgid "Error"
+msgstr "エラー"
+
+#: extension.js
+msgid "Uptime Kuma – error: %s"
+msgstr "Uptime Kuma ― エラー: %s"
+
+#: extension.js
+msgid "Unknown error"
+msgstr "不明なエラー"
+
+#: extension.js
+msgid "Uptime Kuma – no data yet"
+msgstr "Uptime Kuma ― まだデータがありません"
+
+#: extension.js
+msgid "Uptime Kuma – %(up)d up / %(down)d down (as of %(time)s)"
+msgstr "Uptime Kuma ― 稼働 %(up)d / 停止 %(down)d （%(time)s 現在）"
+
+#: extension.js
+msgid "%(up)d up / %(down)d down"
+msgstr "稼働 %(up)d / 停止 %(down)d"
+
+#: extension.js
+msgid "Uptime Kuma Indicator"
+msgstr "Uptime Kuma インジケーター"
+
+#: extension.js
+msgid "Version %s"
+msgstr "バージョン %s"
+
+#: extension.js
+msgid "Failed to open base URL."
+msgstr "ベース URL を開けませんでした。"
+
+#: extension.js
+msgid "%d second ago"
+msgid_plural "%d seconds ago"
+msgstr[0] "%d 秒前"
+
+#: extension.js
+msgid "%d minute ago"
+msgid_plural "%d minutes ago"
+msgstr[0] "%d 分前"
+
+#: extension.js
+msgid "%d hour ago"
+msgid_plural "%d hours ago"
+msgstr[0] "%d 時間前"
+
+#: extension.js
+msgid "%d day ago"
+msgid_plural "%d days ago"
+msgstr[0] "%d 日前"
+
+#: extension.js
+msgid "%d week ago"
+msgid_plural "%d weeks ago"
+msgstr[0] "%d 週間前"
+
+#: utils/network.js
+msgid "Base URL is missing."
+msgstr "ベース URL が未設定です。"
+
+#: utils/network.js
+msgid "API token is not available."
+msgstr "API トークンが利用できません。"
+
+#: utils/network.js
+msgid "Unknown network error"
+msgstr "不明なネットワーク エラー"
+
+#: utils/parsers.js
+msgid "Unnamed monitor"
+msgstr "名前未設定のモニター"
+
+#: utils/parsers.js
+msgid "Frontend"
+msgstr "フロントエンド"
+
+#: utils/parsers.js
+msgid "API Gateway"
+msgstr "API ゲートウェイ"
+
+#: utils/parsers.js
+msgid "Slight latency increase detected"
+msgstr "レイテンシーのわずかな増加を検出しました"
+
+#: utils/parsers.js
+msgid "Database"
+msgstr "データベース"
+
+#: utils/parsers.js
+msgid "No heartbeat received"
+msgstr "ハートビートを受信していません"
+
+#: utils/parsers.js
+msgid "Background Jobs"
+msgstr "バックグラウンド ジョブ"
+
+#: utils/parsers.js
+msgid "External Ping"
+msgstr "外部 Ping"
+
+#: prefs.js
+msgid "Connection"
+msgstr "接続"
+
+#: prefs.js
+msgid "Configure how to contact your Uptime Kuma instance."
+msgstr "Uptime Kuma インスタンスへの接続方法を設定します。"
+
+#: prefs.js
+msgid "Base URL"
+msgstr "ベース URL"
+
+#: prefs.js
+msgid "API Mode"
+msgstr "API モード"
+
+#: prefs.js
+msgid "Choose between public status page JSON or private API with token."
+msgstr "公開ステータスページ JSON とトークンを用いたプライベート API を切り替えます。"
+
+#: prefs.js
+msgid "Status page JSON (public)"
+msgstr "ステータスページ JSON（公開）"
+
+#: prefs.js
+msgid "Private API (token)"
+msgstr "プライベート API（トークン）"
+
+#: prefs.js
+msgid "Status page slug"
+msgstr "ステータスページのスラッグ"
+
+#: prefs.js
+msgid "Status page endpoint template"
+msgstr "ステータスページのエンドポイント テンプレート"
+
+#: prefs.js
+msgid "Use {{slug}} as placeholder. Default: status/{{slug}}/status.json"
+msgstr "{{slug}} をプレースホルダーとして使用します。既定値: status/{{slug}}/status.json"
+
+#: prefs.js
+msgid "Status page JSON URL (optional)"
+msgstr "ステータスページ JSON URL（任意）"
+
+#: prefs.js
+msgid "Override endpoint template with an explicit URL."
+msgstr "エンドポイント テンプレートを特定の URL で上書きします。"
+
+#: prefs.js
+msgid "API endpoint"
+msgstr "API エンドポイント"
+
+#: prefs.js
+msgid "Relative path, default: api/monitor"
+msgstr "相対パス。既定値: api/monitor"
+
+#: prefs.js
+msgid "API token"
+msgstr "API トークン"
+
+#: prefs.js
+msgid "Stored securely using Secret Service."
+msgstr "Secret Service により安全に保存します。"
+
+#: prefs.js
+msgid "Secret Service is unavailable; token cannot be saved securely."
+msgstr "Secret Service が利用できないため、トークンを安全に保存できません。"
+
+#: prefs.js
+msgid "Enter new token"
+msgstr "新しいトークンを入力"
+
+#: prefs.js
+msgid "Save"
+msgstr "保存"
+
+#: prefs.js
+msgid "Remove"
+msgstr "削除"
+
+#: prefs.js
+msgid "Not stored"
+msgstr "保存されていません"
+
+#: prefs.js
+msgid "Unavailable"
+msgstr "利用できません"
+
+#: prefs.js
+msgid "Stored"
+msgstr "保存済み"
+
+#: prefs.js
+msgid "Behaviour"
+msgstr "動作"
+
+#: prefs.js
+msgid "Refresh interval (seconds)"
+msgstr "更新間隔（秒）"
+
+#: prefs.js
+msgid "Minimum 10 seconds."
+msgstr "最小 10 秒。"
+
+#: prefs.js
+msgid "Maximum monitors to display"
+msgstr "表示するモニターの最大数"
+
+#: prefs.js
+msgid "Show latency"
+msgstr "レイテンシーを表示"
+
+#: prefs.js
+msgid "Displays ping measurements when available."
+msgstr "利用可能な場合は ping の測定値を表示します。"
+
+#: prefs.js
+msgid "Enable demo data"
+msgstr "デモ データを有効化"
+
+#: prefs.js
+msgid "Use mock monitors when no base URL is configured."
+msgstr "ベース URL が設定されていない場合はモック モニターを使用します。"
+
+#: prefs.js
+msgid "Appearance"
+msgstr "外観"
+
+#: prefs.js
+msgid "Normal"
+msgstr "標準"
+
+#: prefs.js
+msgid "Compact"
+msgstr "コンパクト"
+
+#: prefs.js
+msgid "Log level"
+msgstr "ログ レベル"
+
+#: prefs.js
+msgid "Errors only"
+msgstr "エラーのみ"
+
+#: prefs.js
+msgid "Informational"
+msgstr "情報"
+
+#: prefs.js
+msgid "Debug"
+msgstr "デバッグ"
+
+#: prefs.js
+msgid "About"
+msgstr "概要"
+
+#: prefs.js
+msgid "Version"
+msgstr "バージョン"
+
+#: prefs.js
+msgid "Need help?"
+msgstr "ヘルプが必要ですか？"
+
+#: prefs.js
+msgid "Check the README for configuration examples."
+msgstr "README で設定例をご確認ください。"
+
+#: prefs.js
+msgid "GTK-only fallback – consider installing libadwaita."
+msgstr "GTK のみのフォールバックです ― libadwaita の導入をご検討ください。"
