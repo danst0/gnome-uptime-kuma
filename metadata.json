@@ -1,0 +1,12 @@
+{
+  "uuid": "uptime-kuma@local",
+  "name": "Uptime Kuma Status",
+  "description": "Shows the status of selected services from a self-hosted Uptime Kuma instance in the GNOME top bar.",
+  "shell-version": [
+    "45",
+    "46"
+  ],
+  "url": "https://github.com/example/gnome-uptime-kuma",
+  "settings-schema": "org.gnome.shell.extensions.uptime-kuma",
+  "gettext-domain": "uptime-kuma"
+}

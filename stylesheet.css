@@ -1,0 +1,8 @@
+.uptime-kuma-menu-item {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.uptime-kuma-menu-item .clutter-text {
+  color: rgba(255, 255, 255, 0.9);
+}

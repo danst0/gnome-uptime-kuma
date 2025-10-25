@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.uptime-kuma"
+          path="/org/gnome/shell/extensions/uptime-kuma/"
+          gettext-domain="uptime-kuma">
+    <key name="server-url" type="s">
+      <default>''</default>
+      <summary>Uptime Kuma base URL</summary>
+      <description>The base URL (including protocol) of the self-hosted Uptime Kuma instance.</description>
+    </key>
+    <key name="status-page-slug" type="s">
+      <default>''</default>
+      <summary>Status page slug</summary>
+      <description>Optional public status page slug to request summary data from.</description>
+    </key>
+    <key name="monitor-ids" type="s">
+      <default>''</default>
+      <summary>Monitor IDs</summary>
+      <description>Comma separated list of monitor IDs to display. Leave empty to show all monitors returned by the API.</description>
+    </key>
+    <key name="refresh-interval" type="i">
+      <default>60</default>
+      <summary>Refresh interval in seconds</summary>
+      <description>Number of seconds between refreshes of the status indicator.</description>
+    </key>
+  </schema>
+</schemalist>
