@@ -1,2 +1,5 @@
-# GNOME Shell extension package
+# GNOME Shell extension packages
 *.shell-extension.zip
+
+# Build artifacts
+uptime-kuma-indicator/build/
