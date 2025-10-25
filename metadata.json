@@ -4,7 +4,9 @@
   "description": "Shows the status of selected services from a self-hosted Uptime Kuma instance in the GNOME top bar.",
   "shell-version": [
     "45",
-    "46"
+    "46",
+    "47",
+    "48"
   ],
   "url": "https://github.com/example/gnome-uptime-kuma",
   "settings-schema": "org.gnome.shell.extensions.uptime-kuma",
