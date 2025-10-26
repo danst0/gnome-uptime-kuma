@@ -1,4 +1,4 @@
-UUID := uptime-kuma-indicator@dumke
+UUID := uptime-kuma-indicator@uptime.dumke.me
 EXT_DIR := uptime-kuma-indicator
 PACKAGE := $(UUID).shell-extension.zip
 EXTRA_FILES := prefs.js stylesheet.css LICENSE README.md messages.mo

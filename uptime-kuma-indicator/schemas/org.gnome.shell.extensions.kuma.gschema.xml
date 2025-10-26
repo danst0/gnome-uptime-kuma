@@ -62,7 +62,7 @@
       <description>Controls which log messages are emitted.</description>
     </key>
     <key name="demo-mode" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Enable demo data</summary>
       <description>Show mock monitors when no base URL is configured.</description>
     </key>
@@ -75,6 +75,11 @@
       <default>[]</default>
       <summary>Selected service IDs to monitor</summary>
       <description>Array of up to 4 service IDs (as strings) to monitor. If empty, all services are monitored.</description>
+    </key>
+    <key name="show-text" type="b">
+      <default>true</default>
+      <summary>Show text in panel</summary>
+      <description>Whether to display the status summary text next to the indicator dot in the top bar.</description>
     </key>
   </schema>
 </schemalist>

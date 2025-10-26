@@ -325,6 +325,7 @@ class KumaIndicator extends PanelMenu.Button {
             'log-level',
             'demo-mode',
             'selected-services',
+            'show-text',
         ];
 
         for (const key of keys) {
@@ -337,6 +338,8 @@ class KumaIndicator extends PanelMenu.Button {
                     this._applyAppearance();
                 else if (key === 'log-level')
                     this._updateLogLevel();
+                else if (key === 'show-text')
+                    this._updateTextVisibility();
 
                 if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'max-items', 'show-latency', 'selected-services'].includes(key))
                     this._refresh();
@@ -360,9 +363,11 @@ class KumaIndicator extends PanelMenu.Button {
         this._config.logLevel = this._settings.get_string('log-level') || 'info';
         this._config.demoMode = this._settings.get_boolean('demo-mode');
         this._config.selectedServices = this._settings.get_strv('selected-services');
+        this._config.showText = this._settings.get_boolean('show-text');
 
         this._applyAppearance();
         this._updateLogLevel();
+        this._updateTextVisibility();
         this._updateOpenItemSensitivity();
     }
 
@@ -377,6 +382,10 @@ class KumaIndicator extends PanelMenu.Button {
         const level = this._config.logLevel;
         const index = LOG_LEVELS.indexOf(level);
         this._logLevelIndex = index >= 0 ? index : 1;
+    }
+
+    _updateTextVisibility() {
+        this._summaryLabel.visible = this._config.showText;
     }
 
     _scheduleRefresh() {
@@ -403,7 +412,9 @@ class KumaIndicator extends PanelMenu.Button {
 
         try {
             let monitors;
-            if (this._config.demoMode || !this._config.baseUrl) {
+            // Use mock data only if demo mode is enabled AND no baseUrl is configured
+            // OR if baseUrl is missing (regardless of demo mode)
+            if (!this._config.baseUrl || (this._config.demoMode && !this._config.baseUrl)) {
                 this._log('info', 'Using mock monitors (demo mode or missing baseUrl)');
                 monitors = mockMonitors();
             } else {
@@ -546,7 +557,7 @@ class KumaIndicator extends PanelMenu.Button {
 
         const uri = this._config.baseUrl;
         try {
-            Gio.AppInfo.launch_default_for_uri(uri, global.create_app_launch_context());
+            Gio.AppInfo.launch_default_for_uri(uri, global.create_app_launch_context(0, -1, null));
         } catch (error) {
             this._log('error', `Failed to open URL ${uri}: ${error.message}`);
             Main.notify(_('Uptime Kuma Indicator'), _('Failed to open base URL.'));

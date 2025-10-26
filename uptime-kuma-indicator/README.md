@@ -33,13 +33,13 @@ Manual steps if you prefer to copy the files yourself:
 
    ```bash
    mkdir -p ~/.local/share/gnome-shell/extensions
-   cp -r uptime-kuma-indicator ~/.local/share/gnome-shell/extensions/uptime-kuma-indicator@dumke
+   cp -r uptime-kuma-indicator ~/.local/share/gnome-shell/extensions/uptime-kuma-indicator@uptime.dumke.me
    ```
 
 2. Compile the GSettings schema:
 
    ```bash
-   glib-compile-schemas ~/.local/share/gnome-shell/extensions/uptime-kuma-indicator@dumke/schemas
+   glib-compile-schemas ~/.local/share/gnome-shell/extensions/uptime-kuma-indicator@uptime.dumke.me/schemas
    ```
 
 3. Reload GNOME Shell:
@@ -83,7 +83,7 @@ journalctl -f -o cat /usr/bin/gnome-shell | grep -i "kuma-indicator"
 To run the preferences dialog without the shell:
 
 ```bash
-gnome-extensions prefs uptime-kuma-indicator@dumke
+gnome-extensions prefs uptime-kuma-indicator@uptime.dumke.me
 ```
 
 ## 🔁 Behaviour Notes

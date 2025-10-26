@@ -40,6 +40,10 @@
     color: #c0bfbc;
 }
 
+.kuma-status-dot {
+    margin-right: 8px;
+}
+
 .kuma-monitor-list {
     margin: 6px 0;
 }

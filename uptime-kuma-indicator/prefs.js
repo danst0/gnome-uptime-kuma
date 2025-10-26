@@ -27,7 +27,6 @@ class PreferencesBuilder {
         this._window = window;
         this._metadata = metadata;
 
-        this._apiModeWidgets = new Map();
         this._availableServices = [];
         this._serviceDropdowns = [];
         this._build();
@@ -79,66 +78,18 @@ class PreferencesBuilder {
     }
 
     _buildConnectionGroup(page) {
-        const group = new Adw.PreferencesGroup({ title: _('Connection'), description: _('Configure how to contact your Uptime Kuma instance.') });
+        const group = new Adw.PreferencesGroup({ title: _('Connection'), description: _('Configure how to contact your Uptime Kuma Prometheus metrics endpoint.') });
 
         const baseUrlRow = new Adw.EntryRow({ title: _('Base URL'), text: this._settings.get_string('base-url') });
         baseUrlRow.set_show_apply_button(false);
         baseUrlRow.connect('notify::text', row => this._settings.set_string('base-url', row.text.trim()));
         group.add(baseUrlRow);
 
-        const modeRow = new Adw.ActionRow({ title: _('API Mode'), subtitle: _('Choose how the extension requests monitor data from Uptime Kuma.') });
-        const modeOptions = [
-            { mode: 'status-page', label: _('Status page JSON (public)') },
-            { mode: 'api-key', label: _('Private API (token)') },
-            { mode: 'metrics', label: _('Prometheus metrics (API key)') },
-        ];
-        const modeSelector = Gtk.DropDown.new_from_strings(modeOptions.map(option => option.label));
-        const storedMode = this._settings.get_string('api-mode') || 'status-page';
-        const initialIndex = Math.max(0, modeOptions.findIndex(option => option.mode === storedMode));
-        modeSelector.selected = initialIndex;
-        modeSelector.connect('notify::selected', widget => {
-            const option = modeOptions[widget.selected] || modeOptions[0];
-            this._settings.set_string('api-mode', option.mode);
-            this._updateVisibility(option.mode);
-        });
-        modeRow.add_suffix(modeSelector);
-        modeRow.activatable_widget = modeSelector;
-        group.add(modeRow);
-        this._apiModeWidgets.set('mode', modeSelector);
-
-        const slugRow = new Adw.EntryRow({ title: _('Status page slug'), text: this._settings.get_string('status-page-slug') });
-        slugRow.set_show_apply_button(false);
-        slugRow.connect('notify::text', row => this._settings.set_string('status-page-slug', row.text.trim()));
-        group.add(slugRow);
-        this._apiModeWidgets.set('status', slugRow);
-
-    const endpointRow = new Adw.EntryRow({ title: _('Status page endpoint template'), text: this._settings.get_string('status-page-endpoint') });
-    endpointRow.set_show_apply_button(false);
-    endpointRow.subtitle = _('Use {{slug}} as placeholder. Default: status/{{slug}}/status.json');
-        endpointRow.connect('notify::text', row => this._settings.set_string('status-page-endpoint', row.text.trim()));
-        group.add(endpointRow);
-        this._apiModeWidgets.set('status-endpoint', endpointRow);
-
-    const jsonRow = new Adw.EntryRow({ title: _('Status page JSON URL (optional)'), text: this._settings.get_string('status-page-json-url') });
-    jsonRow.set_show_apply_button(false);
-    jsonRow.subtitle = _('Override endpoint template with an explicit URL.');
-        jsonRow.connect('notify::text', row => this._settings.set_string('status-page-json-url', row.text.trim()));
-        group.add(jsonRow);
-        this._apiModeWidgets.set('status-json', jsonRow);
-
-    const apiEndpointRow = new Adw.EntryRow({ title: _('API endpoint'), text: this._settings.get_string('api-endpoint') });
-    apiEndpointRow.set_show_apply_button(false);
-    apiEndpointRow.subtitle = _('Relative path, default: api/monitor');
-        apiEndpointRow.connect('notify::text', row => this._settings.set_string('api-endpoint', row.text.trim()));
-        group.add(apiEndpointRow);
-        this._apiModeWidgets.set('api-endpoint', apiEndpointRow);
-
         const metricsEndpointRow = new Adw.EntryRow({ title: _('Metrics endpoint'), text: this._settings.get_string('metrics-endpoint') });
         metricsEndpointRow.set_show_apply_button(false);
         metricsEndpointRow.subtitle = _('Relative path, default: metrics');
         metricsEndpointRow.connect('notify::text', row => this._settings.set_string('metrics-endpoint', row.text.trim()));
         group.add(metricsEndpointRow);
-        this._apiModeWidgets.set('metrics-endpoint', metricsEndpointRow);
 
         // API Token Entry Row
         const tokenRow = new Adw.EntryRow({ 
@@ -151,11 +102,11 @@ class PreferencesBuilder {
         });
         
         group.add(tokenRow);
-        this._apiModeWidgets.set('api-token', tokenRow);
 
         page.add(group);
 
-        this._updateVisibility(this._settings.get_string('api-mode'));
+        // Ensure metrics mode is set
+        this._settings.set_string('api-mode', 'metrics');
     }
 
     _buildServiceSelectionGroup(page) {
@@ -494,6 +445,10 @@ class PreferencesBuilder {
         latencyRow.connect('notify::active', row => this._settings.set_boolean('show-latency', row.active));
         group.add(latencyRow);
 
+        const showTextRow = new Adw.SwitchRow({ title: _('Show text in panel'), subtitle: _('Display status summary next to the indicator dot.'), active: this._settings.get_boolean('show-text') });
+        showTextRow.connect('notify::active', row => this._settings.set_boolean('show-text', row.active));
+        group.add(showTextRow);
+
         const demoRow = new Adw.SwitchRow({ title: _('Enable demo data'), subtitle: _('Use mock monitors when no base URL is configured.'), active: this._settings.get_boolean('demo-mode') });
         demoRow.connect('notify::active', row => this._settings.set_boolean('demo-mode', row.active));
         group.add(demoRow);
@@ -550,38 +505,7 @@ class PreferencesBuilder {
         return box;
     }
 
-    _updateVisibility(mode) {
-        const currentMode = mode || 'status-page';
-
-        const statusWidgets = [
-            this._apiModeWidgets.get('status'),
-            this._apiModeWidgets.get('status-endpoint'),
-            this._apiModeWidgets.get('status-json'),
-        ];
-        const apiWidgets = [
-            this._apiModeWidgets.get('api-endpoint'),
-        ];
-        const metricsWidgets = [
-            this._apiModeWidgets.get('metrics-endpoint'),
-        ];
-        const tokenRow = this._apiModeWidgets.get('api-token');
-
-        statusWidgets.forEach(widget => {
-            if (widget)
-                widget.visible = currentMode === 'status-page';
-        });
-
-        apiWidgets.forEach(widget => {
-            if (widget)
-                widget.visible = currentMode === 'api-key';
-        });
-
-        metricsWidgets.forEach(widget => {
-            if (widget)
-                widget.visible = currentMode === 'metrics';
-        });
-
-        if (tokenRow)
-            tokenRow.visible = currentMode === 'api-key' || currentMode === 'metrics';
+    _updateOpenItemSensitivity() {
+        // Removed - no longer needed
     }
 }
