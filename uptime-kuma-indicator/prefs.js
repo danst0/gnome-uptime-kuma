@@ -1,6 +1,6 @@
 import Gtk from 'gi://Gtk?version=4.0';
 import Adw from 'gi://Adw?version=1';
-import { ExtensionPreferences } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { _ } from './utils/i18n.js';
 
 let Secret = null;
@@ -26,7 +26,7 @@ export default class UptimeKumaPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         initLibs();
         const settings = this.getSettings();
-        const builder = new PreferencesBuilder(settings, window);
+        const builder = new PreferencesBuilder(settings, window, this.metadata);
         if (!Adw && builder.widget)
             window.add(builder.widget);
     }
@@ -34,15 +34,16 @@ export default class UptimeKumaPreferences extends ExtensionPreferences {
     getPreferencesWidget() {
         initLibs();
         const settings = this.getSettings();
-        const builder = new PreferencesBuilder(settings, null);
+        const builder = new PreferencesBuilder(settings, null, this.metadata);
         return builder.widget;
     }
 }
 
 class PreferencesBuilder {
-    constructor(settings, window) {
+    constructor(settings, window, metadata) {
         this._settings = settings;
         this._window = window;
+        this._metadata = metadata;
         this._secretAvailable = Boolean(Secret && SECRET_SCHEMA);
 
         this._apiModeWidgets = new Map();
@@ -122,23 +123,23 @@ class PreferencesBuilder {
         group.add(slugRow);
         this._apiModeWidgets.set('status', slugRow);
 
-        const endpointRow = new Adw.EntryRow({ title: _('Status page endpoint template'), text: this._settings.get_string('status-page-endpoint') });
-        endpointRow.set_show_apply_button(true);
-        endpointRow.set_subtitle(_('Use {{slug}} as placeholder. Default: status/{{slug}}/status.json'));
+    const endpointRow = new Adw.EntryRow({ title: _('Status page endpoint template'), text: this._settings.get_string('status-page-endpoint') });
+    endpointRow.set_show_apply_button(true);
+    endpointRow.subtitle = _('Use {{slug}} as placeholder. Default: status/{{slug}}/status.json');
         endpointRow.connect('apply', row => this._settings.set_string('status-page-endpoint', row.text.trim()));
         group.add(endpointRow);
         this._apiModeWidgets.set('status-endpoint', endpointRow);
 
-        const jsonRow = new Adw.EntryRow({ title: _('Status page JSON URL (optional)'), text: this._settings.get_string('status-page-json-url') });
-        jsonRow.set_show_apply_button(true);
-        jsonRow.set_subtitle(_('Override endpoint template with an explicit URL.'));
+    const jsonRow = new Adw.EntryRow({ title: _('Status page JSON URL (optional)'), text: this._settings.get_string('status-page-json-url') });
+    jsonRow.set_show_apply_button(true);
+    jsonRow.subtitle = _('Override endpoint template with an explicit URL.');
         jsonRow.connect('apply', row => this._settings.set_string('status-page-json-url', row.text.trim()));
         group.add(jsonRow);
         this._apiModeWidgets.set('status-json', jsonRow);
 
-        const apiEndpointRow = new Adw.EntryRow({ title: _('API endpoint'), text: this._settings.get_string('api-endpoint') });
-        apiEndpointRow.set_show_apply_button(true);
-        apiEndpointRow.set_subtitle(_('Relative path, default: api/monitor'));
+    const apiEndpointRow = new Adw.EntryRow({ title: _('API endpoint'), text: this._settings.get_string('api-endpoint') });
+    apiEndpointRow.set_show_apply_button(true);
+    apiEndpointRow.subtitle = _('Relative path, default: api/monitor');
         apiEndpointRow.connect('apply', row => this._settings.set_string('api-endpoint', row.text.trim()));
         group.add(apiEndpointRow);
         this._apiModeWidgets.set('api-endpoint', apiEndpointRow);
@@ -224,7 +225,7 @@ class PreferencesBuilder {
 
     _buildAboutGroup(page) {
         const group = new Adw.PreferencesGroup({ title: _('About') });
-        const infoRow = new Adw.ActionRow({ title: _('Version'), subtitle: String(ExtensionUtils.getCurrentExtension().metadata.version ?? '1') });
+        const infoRow = new Adw.ActionRow({ title: _('Version'), subtitle: String(this._metadata?.version ?? '1') });
         infoRow.set_sensitive(false);
         group.add(infoRow);
 
