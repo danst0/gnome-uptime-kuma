@@ -97,8 +97,8 @@ class PreferencesBuilder {
         const group = new Adw.PreferencesGroup({ title: _('Connection'), description: _('Configure how to contact your Uptime Kuma instance.') });
 
         const baseUrlRow = new Adw.EntryRow({ title: _('Base URL'), text: this._settings.get_string('base-url') });
-        baseUrlRow.set_show_apply_button(true);
-        baseUrlRow.connect('apply', row => this._settings.set_string('base-url', row.text.trim()));
+        baseUrlRow.set_show_apply_button(false);
+        baseUrlRow.connect('notify::text', row => this._settings.set_string('base-url', row.text.trim()));
         group.add(baseUrlRow);
 
         const modeRow = new Adw.ActionRow({ title: _('API Mode'), subtitle: _('Choose between public status page JSON or private API with token.') });
@@ -118,29 +118,29 @@ class PreferencesBuilder {
         this._apiModeWidgets.set('mode', modeSelector);
 
         const slugRow = new Adw.EntryRow({ title: _('Status page slug'), text: this._settings.get_string('status-page-slug') });
-        slugRow.set_show_apply_button(true);
-        slugRow.connect('apply', row => this._settings.set_string('status-page-slug', row.text.trim()));
+        slugRow.set_show_apply_button(false);
+        slugRow.connect('notify::text', row => this._settings.set_string('status-page-slug', row.text.trim()));
         group.add(slugRow);
         this._apiModeWidgets.set('status', slugRow);
 
     const endpointRow = new Adw.EntryRow({ title: _('Status page endpoint template'), text: this._settings.get_string('status-page-endpoint') });
-    endpointRow.set_show_apply_button(true);
+    endpointRow.set_show_apply_button(false);
     endpointRow.subtitle = _('Use {{slug}} as placeholder. Default: status/{{slug}}/status.json');
-        endpointRow.connect('apply', row => this._settings.set_string('status-page-endpoint', row.text.trim()));
+        endpointRow.connect('notify::text', row => this._settings.set_string('status-page-endpoint', row.text.trim()));
         group.add(endpointRow);
         this._apiModeWidgets.set('status-endpoint', endpointRow);
 
     const jsonRow = new Adw.EntryRow({ title: _('Status page JSON URL (optional)'), text: this._settings.get_string('status-page-json-url') });
-    jsonRow.set_show_apply_button(true);
+    jsonRow.set_show_apply_button(false);
     jsonRow.subtitle = _('Override endpoint template with an explicit URL.');
-        jsonRow.connect('apply', row => this._settings.set_string('status-page-json-url', row.text.trim()));
+        jsonRow.connect('notify::text', row => this._settings.set_string('status-page-json-url', row.text.trim()));
         group.add(jsonRow);
         this._apiModeWidgets.set('status-json', jsonRow);
 
     const apiEndpointRow = new Adw.EntryRow({ title: _('API endpoint'), text: this._settings.get_string('api-endpoint') });
-    apiEndpointRow.set_show_apply_button(true);
+    apiEndpointRow.set_show_apply_button(false);
     apiEndpointRow.subtitle = _('Relative path, default: api/monitor');
-        apiEndpointRow.connect('apply', row => this._settings.set_string('api-endpoint', row.text.trim()));
+        apiEndpointRow.connect('notify::text', row => this._settings.set_string('api-endpoint', row.text.trim()));
         group.add(apiEndpointRow);
         this._apiModeWidgets.set('api-endpoint', apiEndpointRow);
 

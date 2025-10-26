@@ -234,12 +234,14 @@ class ScrollSection extends PopupMenu.PopupBaseMenuItem {
     }
 });
 
+const KumaIndicator = GObject.registerClass(
 class KumaIndicator extends PanelMenu.Button {
-    constructor(metadata, settings) {
+    constructor(extension) {
         super(0.0, INDICATOR_NAME, false);
 
-        this._metadata = metadata;
-        this._settings = settings;
+        this._extension = extension;
+        this._metadata = extension.metadata;
+        this._settings = extension.getSettings();
         this._settingsConnections = [];
         this._refreshLoopId = 0;
         this._isRefreshing = false;
@@ -294,7 +296,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._refreshItem.actor.add_style_class_name('kuma-refresh-item');
 
         this._openItem = this.menu.addAction(_('Open Uptime Kuma'), () => this._openBaseUrl());
-        this._prefsItem = this.menu.addAction(_('Preferences…'), () => ExtensionUtils.openPrefs());
+        this._prefsItem = this.menu.addAction(_('Preferences…'), () => this._extension.openPreferences());
         this._aboutItem = this.menu.addAction(_('About / Version'), () => this._showAbout());
 
         this._config = {};
@@ -594,7 +596,7 @@ class KumaIndicator extends PanelMenu.Button {
         else
             log(`${prefix} [${effectiveLevel}] ${message}`);
     }
-}
+});
 
 export default class UptimeKumaIndicatorExtension extends Extension {
     constructor(metadata) {
@@ -604,7 +606,7 @@ export default class UptimeKumaIndicatorExtension extends Extension {
 
     enable() {
         initSecret();
-        this._indicator = new KumaIndicator(this.metadata, this.getSettings());
+        this._indicator = new KumaIndicator(this);
         Main.panel.addToStatusArea(INDICATOR_NAME, this._indicator);
         this._indicator.start();
     }
