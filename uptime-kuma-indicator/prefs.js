@@ -1,40 +1,12 @@
 import Gtk from 'gi://Gtk?version=4.0';
 import Adw from 'gi://Adw?version=1';
+import GLib from 'gi://GLib';
+import Soup from 'gi://Soup?version=3.0';
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { _ } from './utils/i18n.js';
 
-let Secret = null;
-let SECRET_SCHEMA = null;
-
-function initLibs() {
-    if (Secret) return;
-
-    try {
-        // Use the old imports syntax which still works in prefs
-        const gi = imports.gi;
-        Secret = gi.Secret;
-        
-        if (Secret) {
-            SECRET_SCHEMA = new Secret.Schema(
-                'org.gnome.shell.extensions.kuma',
-                Secret.SchemaFlags.NONE,
-                {
-                    'id': Secret.SchemaAttributeType.STRING,
-                }
-            );
-            log('[kuma-indicator] Secret service initialized successfully');
-        }
-    } catch (error) {
-        log('[kuma-indicator] Secret service unavailable in prefs: ' + error.message);
-        Secret = null;
-        SECRET_SCHEMA = null;
-    }
-}
-const SECRET_KEY_ATTRIBUTE = 'api-key';
-
 export default class UptimeKumaPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
-        initLibs();
         const settings = this.getSettings();
         const builder = new PreferencesBuilder(settings, window, this.metadata);
         if (!Adw && builder.widget)
@@ -42,7 +14,6 @@ export default class UptimeKumaPreferences extends ExtensionPreferences {
     }
 
     getPreferencesWidget() {
-        initLibs();
         const settings = this.getSettings();
         const builder = new PreferencesBuilder(settings, null, this.metadata);
         return builder.widget;
@@ -54,9 +25,10 @@ class PreferencesBuilder {
         this._settings = settings;
         this._window = window;
         this._metadata = metadata;
-        this._secretAvailable = Boolean(Secret && SECRET_SCHEMA);
 
         this._apiModeWidgets = new Map();
+        this._availableServices = [];
+        this._serviceDropdowns = [];
         this._build();
     }
 
@@ -71,6 +43,7 @@ class PreferencesBuilder {
         const page = new Adw.PreferencesPage();
 
         this._buildConnectionGroup(page);
+        this._buildServiceSelectionGroup(page);
         this._buildBehaviourGroup(page);
         this._buildAboutGroup(page);
 
@@ -154,78 +127,276 @@ class PreferencesBuilder {
         group.add(apiEndpointRow);
         this._apiModeWidgets.set('api-endpoint', apiEndpointRow);
 
-        // API Token Status Row
-        const statusRow = new Adw.ActionRow({ 
-            title: _('API token status')
-        });
-        this._apiKeyStatus = new Gtk.Label({ 
-            label: _('Not stored'), 
-            halign: Gtk.Align.END,
-            css_classes: ['dim-label']
-        });
-        statusRow.add_suffix(this._apiKeyStatus);
-        
-        const deleteButton = new Gtk.Button({ 
-            label: _('Remove'), 
-            sensitive: this._secretAvailable,
-            css_classes: ['destructive-action']
-        });
-        deleteButton.connect('clicked', () => this._clearApiKey());
-        statusRow.add_suffix(deleteButton);
-        
-        group.add(statusRow);
-        this._apiModeWidgets.set('api-token-status', statusRow);
-
         // API Token Entry Row
-        const tokenRow = new Adw.ActionRow({ 
-            title: _('Set new token'),
-            subtitle: this._secretAvailable ? _('Stored securely using Secret Service') : _('Secret Service unavailable')
+        const tokenRow = new Adw.EntryRow({ 
+            title: _('API token'),
+            text: this._settings.get_string('api-key'),
+            show_apply_button: false
         });
-        
-        const tokenBox = new Gtk.Box({
-            orientation: Gtk.Orientation.HORIZONTAL,
-            spacing: 6,
-            halign: Gtk.Align.END
+        tokenRow.connect('notify::text', row => {
+            this._settings.set_string('api-key', row.text.trim());
         });
-        
-        const tokenEntry = new Gtk.PasswordEntry({ 
-            placeholder_text: _('Enter new token'),
-            width_chars: 25,
-            show_peek_icon: true,
-            sensitive: this._secretAvailable
-        });
-        tokenEntry.connect('activate', () => {
-            if (tokenEntry.text.length > 0) {
-                this._storeApiKey(tokenEntry.text);
-                tokenEntry.text = '';
-            }
-        });
-        
-        const saveButton = new Gtk.Button({ 
-            label: _('Save'),
-            sensitive: false,
-            css_classes: ['suggested-action']
-        });
-        saveButton.connect('clicked', () => {
-            this._storeApiKey(tokenEntry.text);
-            tokenEntry.text = '';
-        });
-        
-        tokenEntry.connect('notify::text', entry => {
-            saveButton.sensitive = entry.text.length > 0 && this._secretAvailable;
-        });
-        
-        tokenBox.append(tokenEntry);
-        tokenBox.append(saveButton);
-        tokenRow.add_suffix(tokenBox);
         
         group.add(tokenRow);
         this._apiModeWidgets.set('api-token', tokenRow);
 
         page.add(group);
 
-        this._refreshApiKeyStatus();
         this._updateVisibility(this._settings.get_string('api-mode'));
+    }
+
+    _buildServiceSelectionGroup(page) {
+        const group = new Adw.PreferencesGroup({ 
+            title: _('Service Selection'), 
+            description: _('Select up to 4 specific services to monitor. Leave empty to monitor all services.') 
+        });
+
+        // Fetch services button
+        const fetchRow = new Adw.ActionRow({ 
+            title: _('Fetch Services'), 
+            subtitle: _('Load available services from your Uptime Kuma instance.') 
+        });
+        const fetchButton = new Gtk.Button({ 
+            label: _('Fetch'),
+            valign: Gtk.Align.CENTER,
+            halign: Gtk.Align.END
+        });
+        fetchButton.add_css_class('suggested-action');
+        fetchButton.connect('clicked', () => this._fetchServices(fetchButton));
+        fetchRow.add_suffix(fetchButton);
+        fetchRow.activatable_widget = fetchButton;
+        group.add(fetchRow);
+
+        // Service dropdowns
+        const selectedServices = this._settings.get_strv('selected-services');
+        for (let i = 0; i < 4; i++) {
+            const serviceRow = new Adw.ActionRow({ 
+                title: `${_('Service')} ${i + 1}`,
+                subtitle: _('Select a service to monitor')
+            });
+            
+            const dropdown = new Gtk.DropDown({
+                valign: Gtk.Align.CENTER,
+                model: new Gtk.StringList()
+            });
+            
+            // Add "None" option
+            dropdown.model.append(_('(None)'));
+            dropdown.selected = 0;
+            
+            // If there's a saved selection, we'll restore it after fetching
+            if (selectedServices[i]) {
+                dropdown.model.append(selectedServices[i]);
+                dropdown.selected = 1;
+            }
+            
+            dropdown.connect('notify::selected', () => this._onServiceSelected());
+            
+            this._serviceDropdowns.push(dropdown);
+            serviceRow.add_suffix(dropdown);
+            serviceRow.activatable_widget = dropdown;
+            group.add(serviceRow);
+        }
+
+        page.add(group);
+    }
+
+    async _fetchServices(button) {
+        // Disable button during fetch
+        button.sensitive = false;
+        button.label = _('Fetching...');
+
+        try {
+            const baseUrl = this._settings.get_string('base-url');
+            const apiMode = this._settings.get_string('api-mode');
+            
+            if (!baseUrl) {
+                this._showError(_('Please configure Base URL first.'));
+                return;
+            }
+
+            let services = [];
+            
+            if (apiMode === 'api-key') {
+                // Fetch from private API
+                const apiKey = this._settings.get_string('api-key');
+                if (!apiKey) {
+                    this._showError(_('Please configure API token first.'));
+                    return;
+                }
+                
+                const apiEndpoint = this._settings.get_string('api-endpoint') || 'api/monitor';
+                services = await this._fetchFromPrivateApi(baseUrl, apiEndpoint, apiKey);
+            } else {
+                // Fetch from status page
+                const statusPageSlug = this._settings.get_string('status-page-slug') || 'default';
+                const statusPageEndpoint = this._settings.get_string('status-page-endpoint') || 'status/{{slug}}/status.json';
+                const statusPageJsonUrl = this._settings.get_string('status-page-json-url');
+                services = await this._fetchFromStatusPage(baseUrl, statusPageSlug, statusPageEndpoint, statusPageJsonUrl);
+            }
+
+            this._availableServices = services;
+            this._updateServiceDropdowns();
+            
+        } catch (error) {
+            this._showError(`${_('Failed to fetch services')}: ${error.message}`);
+            console.error('Service fetch error:', error);
+        } finally {
+            button.sensitive = true;
+            button.label = _('Fetch');
+        }
+    }
+
+    async _fetchFromStatusPage(baseUrl, slug, endpointTemplate, jsonUrl) {
+        let endpoint = jsonUrl || '';
+        if (!endpoint) {
+            const template = endpointTemplate || 'status/{{slug}}/status.json';
+            const encodedSlug = encodeURIComponent(slug);
+            endpoint = template.includes('{{slug}}') ? template.replace('{{slug}}', encodedSlug) : `${template}/${encodedSlug}`;
+        }
+
+        const url = this._joinUrl(baseUrl, endpoint);
+        const json = await this._getJson(url);
+        
+        // Parse status page format
+        const publicGroupList = json?.publicGroupList || [];
+        const services = [];
+        
+        for (const group of publicGroupList) {
+            const monitorList = group?.monitorList || [];
+            for (const monitor of monitorList) {
+                if (monitor.id && monitor.name) {
+                    services.push({
+                        id: String(monitor.id),
+                        name: monitor.name
+                    });
+                }
+            }
+        }
+        
+        return services;
+    }
+
+    async _fetchFromPrivateApi(baseUrl, apiEndpoint, apiKey) {
+        const url = this._joinUrl(baseUrl, apiEndpoint);
+        const json = await this._getJson(url, {
+            'Accept': 'application/json',
+            'Authorization': apiKey
+        });
+        
+        // Parse API format
+        const monitorList = json?.monitorList || [];
+        const services = [];
+        
+        for (const monitor of monitorList) {
+            if (monitor.id && monitor.name) {
+                services.push({
+                    id: String(monitor.id),
+                    name: monitor.name
+                });
+            }
+        }
+        
+        return services;
+    }
+
+    async _getJson(url, headers = {}) {
+        return new Promise((resolve, reject) => {
+            const session = new Soup.Session({ timeout: 10 });
+            const message = Soup.Message.new('GET', url);
+            
+            message.request_headers.replace('Accept', 'application/json');
+            for (const [key, value] of Object.entries(headers)) {
+                message.request_headers.replace(key, value);
+            }
+
+            session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (sess, result) => {
+                try {
+                    const bytes = session.send_and_read_finish(result);
+                    const status = message.get_status();
+
+                    if (status < 200 || status >= 300) {
+                        reject(new Error(`HTTP ${status}`));
+                        return;
+                    }
+
+                    const data = bytes.get_data();
+                    const text = new TextDecoder().decode(data);
+                    resolve(JSON.parse(text));
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    _joinUrl(base, path) {
+        if (!base) return path;
+        if (!path) return base;
+        if (path.startsWith('http://') || path.startsWith('https://')) return path;
+        const cleanedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+        const cleanedPath = path.startsWith('/') ? path.slice(1) : path;
+        return `${cleanedBase}/${cleanedPath}`;
+    }
+
+    _updateServiceDropdowns() {
+        const selectedServices = this._settings.get_strv('selected-services');
+        
+        for (let i = 0; i < this._serviceDropdowns.length; i++) {
+            const dropdown = this._serviceDropdowns[i];
+            const model = dropdown.model;
+            
+            // Clear existing items except "None"
+            while (model.get_n_items() > 1) {
+                model.remove(1);
+            }
+            
+            // Add all available services
+            for (const service of this._availableServices) {
+                model.append(`${service.name} (ID: ${service.id})`);
+            }
+            
+            // Restore previous selection if it still exists
+            if (selectedServices[i]) {
+                const index = this._availableServices.findIndex(s => s.id === selectedServices[i]);
+                if (index !== -1) {
+                    dropdown.selected = index + 1; // +1 because of "None" option
+                } else {
+                    dropdown.selected = 0;
+                }
+            } else {
+                dropdown.selected = 0;
+            }
+        }
+    }
+
+    _onServiceSelected() {
+        const selectedServices = [];
+        
+        for (const dropdown of this._serviceDropdowns) {
+            const selected = dropdown.selected;
+            if (selected > 0 && selected <= this._availableServices.length) {
+                const service = this._availableServices[selected - 1];
+                selectedServices.push(service.id);
+            }
+        }
+        
+        this._settings.set_strv('selected-services', selectedServices);
+    }
+
+    _showError(message) {
+        // In a real implementation, you might want to show a dialog
+        // For now, we'll just log it
+        console.error(message);
+        
+        // Try to show a toast if available (GNOME 42+)
+        if (this._window && this._window.add_toast) {
+            const toast = new Adw.Toast({
+                title: message,
+                timeout: 3
+            });
+            this._window.add_toast(toast);
+        }
     }
 
     _buildBehaviourGroup(page) {
@@ -310,7 +481,6 @@ class PreferencesBuilder {
         const apiWidgets = [
             this._apiModeWidgets.get('api-endpoint'),
             this._apiModeWidgets.get('api-token'),
-            this._apiModeWidgets.get('api-token-status'),
         ];
 
         statusWidgets.forEach(widget => {
@@ -322,136 +492,5 @@ class PreferencesBuilder {
             if (widget)
                 widget.visible = currentMode === 'api-key';
         });
-    }
-
-    async _storeApiKey(token) {
-        log(`[kuma-indicator] _storeApiKey called with token length: ${token?.length || 0}`);
-        
-        if (!token || token.trim().length === 0) {
-            log('[kuma-indicator] Empty token provided');
-            return;
-        }
-
-        let storedInKeyring = false;
-
-        // Try to store in Secret Service first (more secure)
-        if (this._secretAvailable && Secret && SECRET_SCHEMA) {
-            try {
-                log('[kuma-indicator] Attempting to store in Secret Service...');
-                const cancellable = new imports.gi.Gio.Cancellable();
-                
-                await new Promise((resolve, reject) => {
-                    // Set a timeout of 5 seconds
-                    const timeoutId = imports.gi.GLib.timeout_add(
-                        imports.gi.GLib.PRIORITY_DEFAULT,
-                        5000,
-                        () => {
-                            cancellable.cancel();
-                            reject(new Error('Timeout storing secret'));
-                            return imports.gi.GLib.SOURCE_REMOVE;
-                        }
-                    );
-                    
-                    Secret.password_store(
-                        SECRET_SCHEMA,
-                        { 'id': SECRET_KEY_ATTRIBUTE },
-                        Secret.COLLECTION_DEFAULT,
-                        'Uptime Kuma Indicator token',
-                        token,
-                        cancellable,
-                        (source, result) => {
-                            imports.gi.GLib.source_remove(timeoutId);
-                            try {
-                                Secret.password_store_finish(result);
-                                log('[kuma-indicator] Token stored in Secret Service successfully');
-                                resolve();
-                            } catch (error) {
-                                log(`[kuma-indicator] Failed to store in Secret Service: ${error.message}`);
-                                reject(error);
-                            }
-                        }
-                    );
-                });
-                storedInKeyring = true;
-                // Clear GSettings fallback if keyring storage succeeded
-                this._settings.set_string('api-key', '');
-            } catch (error) {
-                log(`[kuma-indicator] Secret Service storage failed: ${error.message}`);
-                storedInKeyring = false;
-            }
-        }
-
-        // Fallback to GSettings if Secret Service failed or unavailable
-        if (!storedInKeyring) {
-            log('[kuma-indicator] Storing token in GSettings (fallback)');
-            this._settings.set_string('api-key', token);
-        }
-
-        await this._refreshApiKeyStatus();
-    }
-
-    async _clearApiKey() {
-        // Clear from Secret Service
-        if (this._secretAvailable && Secret && SECRET_SCHEMA) {
-            try {
-                await new Promise(resolve => {
-                    Secret.password_clear(SECRET_SCHEMA, { 'id': SECRET_KEY_ATTRIBUTE }, null, (source, result) => {
-                        try {
-                            Secret.password_clear_finish(result);
-                            log('[kuma-indicator] Token cleared from Secret Service');
-                        } catch (error) {
-                            log(`[kuma-indicator] Failed to clear from Secret Service: ${error.message}`);
-                        } finally {
-                            resolve();
-                        }
-                    });
-                });
-            } catch (error) {
-                log(`[kuma-indicator] Error clearing Secret Service: ${error.message}`);
-            }
-        }
-
-        // Clear from GSettings fallback
-        this._settings.set_string('api-key', '');
-        log('[kuma-indicator] Token cleared from GSettings');
-
-        await this._refreshApiKeyStatus();
-    }
-
-    async _refreshApiKeyStatus() {
-        if (!this._apiKeyStatus)
-            return;
-
-        let token = null;
-
-        // Try to read from Secret Service first
-        if (this._secretAvailable && Secret && SECRET_SCHEMA) {
-            try {
-                token = await new Promise(resolve => {
-                    Secret.password_lookup(SECRET_SCHEMA, { 'id': SECRET_KEY_ATTRIBUTE }, null, (source, result) => {
-                        try {
-                            const value = Secret.password_lookup_finish(result);
-                            resolve(value ?? null);
-                        } catch (error) {
-                            log(`[kuma-indicator] Failed to read from Secret Service: ${error.message}`);
-                            resolve(null);
-                        }
-                    });
-                });
-            } catch (error) {
-                log(`[kuma-indicator] Error reading from Secret Service: ${error.message}`);
-            }
-        }
-
-        // Fallback to GSettings if not found in keyring
-        if (!token) {
-            const gsettingsToken = this._settings.get_string('api-key');
-            if (gsettingsToken && gsettingsToken.length > 0) {
-                token = gsettingsToken;
-                log('[kuma-indicator] Token found in GSettings (fallback)');
-            }
-        }
-
-        this._apiKeyStatus.label = token ? _('Stored') : _('Not stored');
     }
 }

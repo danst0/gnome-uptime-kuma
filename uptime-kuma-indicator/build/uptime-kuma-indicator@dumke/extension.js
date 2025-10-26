@@ -14,8 +14,6 @@ import { MonitorFetcher } from './utils/network.js';
 import { aggregateMonitors, mockMonitors } from './utils/parsers.js';
 import { _, ngettext } from './utils/i18n.js';
 
-let Secret = null;
-
 const INDICATOR_NAME = 'uptime-kuma-indicator';
 const STATUS_CLASS_MAP = {
     up: 'ok',
@@ -26,26 +24,9 @@ const STATUS_CLASS_MAP = {
 };
 
 const LOG_LEVELS = ['error', 'info', 'debug'];
-const SECRET_KEY_ATTRIBUTE = 'api-key';
-let SECRET_SCHEMA = null;
 
 const USEC_PER_SEC = 1_000_000;
 const REFRESH_ON_ENABLE_DELAY_MS = 200;
-
-function initSecret() {
-    if (Secret) return;
-    
-    try {
-        Secret = imports.gi.Secret;
-        if (Secret) {
-            SECRET_SCHEMA = new Secret.Schema('org.gnome.shell.extensions.kuma', Secret.SchemaFlags.NONE, {
-                id: Secret.SchemaAttributeType.STRING,
-            });
-        }
-    } catch (error) {
-        log('[kuma-indicator] Secret service unavailable: ' + error.message);
-    }
-}
 
 function toDateTime(value) {
     if (!value)
@@ -155,10 +136,8 @@ class MonitorRow extends St.BoxLayout {
         this._name.text = monitor.name ?? '—';
         this._setStatusClass(monitor.status);
 
-        if (monitor.message)
-            this._name.set_tooltip_text(monitor.message);
-        else
-            this._name.set_tooltip_text(null);
+        // Note: Tooltips are not easily available in GNOME Shell 46+
+        // The message field is typically empty anyway, so we skip tooltip support
 
         if (showLatency) {
             if (typeof monitor.latencyMs === 'number')
@@ -234,12 +213,14 @@ class ScrollSection extends PopupMenu.PopupBaseMenuItem {
     }
 });
 
+const KumaIndicator = GObject.registerClass(
 class KumaIndicator extends PanelMenu.Button {
-    constructor(metadata, settings) {
+    constructor(extension) {
         super(0.0, INDICATOR_NAME, false);
 
-        this._metadata = metadata;
-        this._settings = settings;
+        this._extension = extension;
+        this._metadata = extension.metadata;
+        this._settings = extension.getSettings();
         this._settingsConnections = [];
         this._refreshLoopId = 0;
         this._isRefreshing = false;
@@ -294,7 +275,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._refreshItem.actor.add_style_class_name('kuma-refresh-item');
 
         this._openItem = this.menu.addAction(_('Open Uptime Kuma'), () => this._openBaseUrl());
-        this._prefsItem = this.menu.addAction(_('Preferences…'), () => ExtensionUtils.openPrefs());
+        this._prefsItem = this.menu.addAction(_('Preferences…'), () => this._extension.openPreferences());
         this._aboutItem = this.menu.addAction(_('About / Version'), () => this._showAbout());
 
         this._config = {};
@@ -341,6 +322,7 @@ class KumaIndicator extends PanelMenu.Button {
             'appearance',
             'log-level',
             'demo-mode',
+            'selected-services',
         ];
 
         for (const key of keys) {
@@ -354,7 +336,7 @@ class KumaIndicator extends PanelMenu.Button {
                 else if (key === 'log-level')
                     this._updateLogLevel();
 
-                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'demo-mode', 'max-items', 'show-latency'].includes(key))
+                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'demo-mode', 'max-items', 'show-latency', 'selected-services'].includes(key))
                     this._refresh();
             });
             this._settingsConnections.push(id);
@@ -374,6 +356,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._config.appearance = this._settings.get_string('appearance') || 'normal';
         this._config.logLevel = this._settings.get_string('log-level') || 'info';
         this._config.demoMode = this._settings.get_boolean('demo-mode');
+        this._config.selectedServices = this._settings.get_strv('selected-services');
 
         this._applyAppearance();
         this._updateLogLevel();
@@ -428,10 +411,22 @@ class KumaIndicator extends PanelMenu.Button {
                 monitors = payload.monitors;
             }
 
+            // Filter by selected services if any are configured
+            if (this._config.selectedServices && this._config.selectedServices.length > 0) {
+                const selectedSet = new Set(this._config.selectedServices);
+                monitors = monitors.filter(m => {
+                    // Ensure monitor ID is a string for comparison
+                    const monitorId = String(m.id);
+                    return selectedSet.has(monitorId);
+                });
+                this._log('debug', `Filtered to ${monitors.length} selected services`);
+            }
+
             monitors = monitors.slice(0, this._config.maxItems);
             this._updateMonitorList(monitors);
             this._updateSummary(monitors);
-            this._setTooltipFromSummary();
+            // Tooltips not supported in GNOME Shell 46+ for panel buttons
+            // this._setTooltipFromSummary();
         } catch (error) {
             this._log('error', `Refresh failed: ${error.message}`);
             this._setErrorState(error);
@@ -453,8 +448,9 @@ class KumaIndicator extends PanelMenu.Button {
         };
         this._summaryLabel.text = _('Error');
         this._switchDotClass('unknown');
-        const tooltip = _('Uptime Kuma – error: %s').format(error.message ?? _('Unknown error'));
-        this.set_tooltip_text(tooltip);
+        // Tooltips not supported in GNOME Shell 46+ for panel buttons
+        // const tooltip = _('Uptime Kuma – error: %s').format(error.message ?? _('Unknown error'));
+        // this.set_tooltip_text(tooltip);
     }
 
     _updateMonitorList(monitors) {
@@ -507,19 +503,21 @@ class KumaIndicator extends PanelMenu.Button {
         this._switchDotClass(summary.status);
     }
 
+    // Tooltips not supported in GNOME Shell 46+ for panel buttons
+    // Keeping this method for potential future use but it's currently disabled
     _setTooltipFromSummary() {
-        if (!this._lastRefresh) {
-            this.set_tooltip_text(_('Uptime Kuma – no data yet'));
-            return;
-        }
+        // if (!this._lastRefresh) {
+        //     this.set_tooltip_text(_('Uptime Kuma – no data yet'));
+        //     return;
+        // }
 
-        const timeString = this._lastRefresh.format('%H:%M:%S');
-        const tooltip = _('Uptime Kuma – %(up)d up / %(down)d down (as of %(time)s)').format({
-            up: this._summaryState.up,
-            down: this._summaryState.down,
-            time: timeString,
-        });
-        this.set_tooltip_text(tooltip);
+        // const timeString = this._lastRefresh.format('%H:%M:%S');
+        // const tooltip = _('Uptime Kuma – %(up)d up / %(down)d down (as of %(time)s)').format({
+        //     up: this._summaryState.up,
+        //     down: this._summaryState.down,
+        //     time: timeString,
+        // });
+        // this.set_tooltip_text(tooltip);
     }
 
     _switchDotClass(status) {
@@ -532,25 +530,9 @@ class KumaIndicator extends PanelMenu.Button {
     }
 
     async _lookupApiKey() {
-        if (!Secret || !SECRET_SCHEMA)
-            return null;
-
-        return await new Promise(resolve => {
-            try {
-                Secret.password_lookup(SECRET_SCHEMA, { id: SECRET_KEY_ATTRIBUTE }, null, (source, result) => {
-                    try {
-                        const value = Secret.password_lookup_finish(result);
-                        resolve(value ?? null);
-                    } catch (error) {
-                        this._log('error', `Secret lookup failed: ${error.message}`);
-                        resolve(null);
-                    }
-                });
-            } catch (error) {
-                this._log('error', `Secret lookup invocation failed: ${error.message}`);
-                resolve(null);
-            }
-        });
+        // Simply read from GSettings
+        const token = this._settings.get_string('api-key');
+        return (token && token.length > 0) ? token : null;
     }
 
     _openBaseUrl() {
@@ -594,7 +576,7 @@ class KumaIndicator extends PanelMenu.Button {
         else
             log(`${prefix} [${effectiveLevel}] ${message}`);
     }
-}
+});
 
 export default class UptimeKumaIndicatorExtension extends Extension {
     constructor(metadata) {
@@ -603,8 +585,7 @@ export default class UptimeKumaIndicatorExtension extends Extension {
     }
 
     enable() {
-        initSecret();
-        this._indicator = new KumaIndicator(this.metadata, this.getSettings());
+        this._indicator = new KumaIndicator(this);
         Main.panel.addToStatusArea(INDICATOR_NAME, this._indicator);
         this._indicator.start();
     }

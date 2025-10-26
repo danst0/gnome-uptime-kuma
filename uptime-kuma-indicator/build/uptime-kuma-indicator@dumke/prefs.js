@@ -1,51 +1,34 @@
 import Gtk from 'gi://Gtk?version=4.0';
 import Adw from 'gi://Adw?version=1';
-import { ExtensionPreferences } from 'resource:///org/gnome/shell/extensions/extension.js';
+import GLib from 'gi://GLib';
+import Soup from 'gi://Soup?version=3.0';
+import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { _ } from './utils/i18n.js';
-
-let Secret = null;
-let SECRET_SCHEMA = null;
-
-function initLibs() {
-    if (Secret) return;
-
-    try {
-        Secret = imports.gi.Secret;
-        if (Secret) {
-            SECRET_SCHEMA = new Secret.Schema('org.gnome.shell.extensions.kuma', Secret.SchemaFlags.NONE, {
-                id: Secret.SchemaAttributeType.STRING,
-            });
-        }
-    } catch (error) {
-        log('[kuma-indicator] Secret service unavailable in prefs: ' + error.message);
-    }
-}
-const SECRET_KEY_ATTRIBUTE = 'api-key';
 
 export default class UptimeKumaPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
-        initLibs();
         const settings = this.getSettings();
-        const builder = new PreferencesBuilder(settings, window);
+        const builder = new PreferencesBuilder(settings, window, this.metadata);
         if (!Adw && builder.widget)
             window.add(builder.widget);
     }
 
     getPreferencesWidget() {
-        initLibs();
         const settings = this.getSettings();
-        const builder = new PreferencesBuilder(settings, null);
+        const builder = new PreferencesBuilder(settings, null, this.metadata);
         return builder.widget;
     }
 }
 
 class PreferencesBuilder {
-    constructor(settings, window) {
+    constructor(settings, window, metadata) {
         this._settings = settings;
         this._window = window;
-        this._secretAvailable = Boolean(Secret && SECRET_SCHEMA);
+        this._metadata = metadata;
 
         this._apiModeWidgets = new Map();
+        this._availableServices = [];
+        this._serviceDropdowns = [];
         this._build();
     }
 
@@ -60,6 +43,7 @@ class PreferencesBuilder {
         const page = new Adw.PreferencesPage();
 
         this._buildConnectionGroup(page);
+        this._buildServiceSelectionGroup(page);
         this._buildBehaviourGroup(page);
         this._buildAboutGroup(page);
 
@@ -96,8 +80,8 @@ class PreferencesBuilder {
         const group = new Adw.PreferencesGroup({ title: _('Connection'), description: _('Configure how to contact your Uptime Kuma instance.') });
 
         const baseUrlRow = new Adw.EntryRow({ title: _('Base URL'), text: this._settings.get_string('base-url') });
-        baseUrlRow.set_show_apply_button(true);
-        baseUrlRow.connect('apply', row => this._settings.set_string('base-url', row.text.trim()));
+        baseUrlRow.set_show_apply_button(false);
+        baseUrlRow.connect('notify::text', row => this._settings.set_string('base-url', row.text.trim()));
         group.add(baseUrlRow);
 
         const modeRow = new Adw.ActionRow({ title: _('API Mode'), subtitle: _('Choose between public status page JSON or private API with token.') });
@@ -117,60 +101,302 @@ class PreferencesBuilder {
         this._apiModeWidgets.set('mode', modeSelector);
 
         const slugRow = new Adw.EntryRow({ title: _('Status page slug'), text: this._settings.get_string('status-page-slug') });
-        slugRow.set_show_apply_button(true);
-        slugRow.connect('apply', row => this._settings.set_string('status-page-slug', row.text.trim()));
+        slugRow.set_show_apply_button(false);
+        slugRow.connect('notify::text', row => this._settings.set_string('status-page-slug', row.text.trim()));
         group.add(slugRow);
         this._apiModeWidgets.set('status', slugRow);
 
-        const endpointRow = new Adw.EntryRow({ title: _('Status page endpoint template'), text: this._settings.get_string('status-page-endpoint') });
-        endpointRow.set_show_apply_button(true);
-        endpointRow.set_subtitle(_('Use {{slug}} as placeholder. Default: status/{{slug}}/status.json'));
-        endpointRow.connect('apply', row => this._settings.set_string('status-page-endpoint', row.text.trim()));
+    const endpointRow = new Adw.EntryRow({ title: _('Status page endpoint template'), text: this._settings.get_string('status-page-endpoint') });
+    endpointRow.set_show_apply_button(false);
+    endpointRow.subtitle = _('Use {{slug}} as placeholder. Default: status/{{slug}}/status.json');
+        endpointRow.connect('notify::text', row => this._settings.set_string('status-page-endpoint', row.text.trim()));
         group.add(endpointRow);
         this._apiModeWidgets.set('status-endpoint', endpointRow);
 
-        const jsonRow = new Adw.EntryRow({ title: _('Status page JSON URL (optional)'), text: this._settings.get_string('status-page-json-url') });
-        jsonRow.set_show_apply_button(true);
-        jsonRow.set_subtitle(_('Override endpoint template with an explicit URL.'));
-        jsonRow.connect('apply', row => this._settings.set_string('status-page-json-url', row.text.trim()));
+    const jsonRow = new Adw.EntryRow({ title: _('Status page JSON URL (optional)'), text: this._settings.get_string('status-page-json-url') });
+    jsonRow.set_show_apply_button(false);
+    jsonRow.subtitle = _('Override endpoint template with an explicit URL.');
+        jsonRow.connect('notify::text', row => this._settings.set_string('status-page-json-url', row.text.trim()));
         group.add(jsonRow);
         this._apiModeWidgets.set('status-json', jsonRow);
 
-        const apiEndpointRow = new Adw.EntryRow({ title: _('API endpoint'), text: this._settings.get_string('api-endpoint') });
-        apiEndpointRow.set_show_apply_button(true);
-        apiEndpointRow.set_subtitle(_('Relative path, default: api/monitor'));
-        apiEndpointRow.connect('apply', row => this._settings.set_string('api-endpoint', row.text.trim()));
+    const apiEndpointRow = new Adw.EntryRow({ title: _('API endpoint'), text: this._settings.get_string('api-endpoint') });
+    apiEndpointRow.set_show_apply_button(false);
+    apiEndpointRow.subtitle = _('Relative path, default: api/monitor');
+        apiEndpointRow.connect('notify::text', row => this._settings.set_string('api-endpoint', row.text.trim()));
         group.add(apiEndpointRow);
         this._apiModeWidgets.set('api-endpoint', apiEndpointRow);
 
-        const apiRow = new Adw.ActionRow({ title: _('API token'), subtitle: this._secretAvailable ? _('Stored securely using Secret Service.') : _('Secret Service is unavailable; token cannot be saved securely.') });
-        const tokenEntry = new Gtk.PasswordEntry({ placeholder_text: _('Enter new token'), width_chars: 28, show_peek_icon: true, sensitive: this._secretAvailable });
-        tokenEntry.connect('activate', () => this._storeApiKey(tokenEntry.text));
-        const saveButton = new Gtk.Button({ label: _('Save'), sensitive: this._secretAvailable && tokenEntry.text.length > 0 });
-        saveButton.connect('clicked', () => {
-            this._storeApiKey(tokenEntry.text);
-            tokenEntry.text = '';
+        // API Token Entry Row
+        const tokenRow = new Adw.EntryRow({ 
+            title: _('API token'),
+            text: this._settings.get_string('api-key'),
+            show_apply_button: false
         });
-        tokenEntry.connect('notify::text', entry => {
-            saveButton.sensitive = entry.text.length > 0 && this._secretAvailable;
+        tokenRow.connect('notify::text', row => {
+            this._settings.set_string('api-key', row.text.trim());
         });
-        apiRow.add_suffix(tokenEntry);
-        apiRow.add_suffix(saveButton);
-
-        const deleteButton = new Gtk.Button({ label: _('Remove'), sensitive: this._secretAvailable });
-        deleteButton.connect('clicked', () => this._clearApiKey());
-        apiRow.add_suffix(deleteButton);
-
-        this._apiKeyStatus = new Gtk.Label({ label: _('Not stored'), halign: Gtk.Align.END, xalign: 1.0 });
-        apiRow.add_suffix(this._apiKeyStatus);
-
-        group.add(apiRow);
-        this._apiModeWidgets.set('api-token', apiRow);
+        
+        group.add(tokenRow);
+        this._apiModeWidgets.set('api-token', tokenRow);
 
         page.add(group);
 
-        this._refreshApiKeyStatus();
         this._updateVisibility(this._settings.get_string('api-mode'));
+    }
+
+    _buildServiceSelectionGroup(page) {
+        const group = new Adw.PreferencesGroup({ 
+            title: _('Service Selection'), 
+            description: _('Select up to 4 specific services to monitor. Leave empty to monitor all services.') 
+        });
+
+        // Fetch services button
+        const fetchRow = new Adw.ActionRow({ 
+            title: _('Fetch Services'), 
+            subtitle: _('Load available services from your Uptime Kuma instance.') 
+        });
+        const fetchButton = new Gtk.Button({ 
+            label: _('Fetch'),
+            valign: Gtk.Align.CENTER,
+            halign: Gtk.Align.END
+        });
+        fetchButton.add_css_class('suggested-action');
+        fetchButton.connect('clicked', () => this._fetchServices(fetchButton));
+        fetchRow.add_suffix(fetchButton);
+        fetchRow.activatable_widget = fetchButton;
+        group.add(fetchRow);
+
+        // Service dropdowns
+        const selectedServices = this._settings.get_strv('selected-services');
+        for (let i = 0; i < 4; i++) {
+            const serviceRow = new Adw.ActionRow({ 
+                title: `${_('Service')} ${i + 1}`,
+                subtitle: _('Select a service to monitor')
+            });
+            
+            const dropdown = new Gtk.DropDown({
+                valign: Gtk.Align.CENTER,
+                model: new Gtk.StringList()
+            });
+            
+            // Add "None" option
+            dropdown.model.append(_('(None)'));
+            dropdown.selected = 0;
+            
+            // If there's a saved selection, we'll restore it after fetching
+            if (selectedServices[i]) {
+                dropdown.model.append(selectedServices[i]);
+                dropdown.selected = 1;
+            }
+            
+            dropdown.connect('notify::selected', () => this._onServiceSelected());
+            
+            this._serviceDropdowns.push(dropdown);
+            serviceRow.add_suffix(dropdown);
+            serviceRow.activatable_widget = dropdown;
+            group.add(serviceRow);
+        }
+
+        page.add(group);
+    }
+
+    async _fetchServices(button) {
+        // Disable button during fetch
+        button.sensitive = false;
+        button.label = _('Fetching...');
+
+        try {
+            const baseUrl = this._settings.get_string('base-url');
+            const apiMode = this._settings.get_string('api-mode');
+            
+            if (!baseUrl) {
+                this._showError(_('Please configure Base URL first.'));
+                return;
+            }
+
+            let services = [];
+            
+            if (apiMode === 'api-key') {
+                // Fetch from private API
+                const apiKey = this._settings.get_string('api-key');
+                if (!apiKey) {
+                    this._showError(_('Please configure API token first.'));
+                    return;
+                }
+                
+                const apiEndpoint = this._settings.get_string('api-endpoint') || 'api/monitor';
+                services = await this._fetchFromPrivateApi(baseUrl, apiEndpoint, apiKey);
+            } else {
+                // Fetch from status page
+                const statusPageSlug = this._settings.get_string('status-page-slug') || 'default';
+                const statusPageEndpoint = this._settings.get_string('status-page-endpoint') || 'status/{{slug}}/status.json';
+                const statusPageJsonUrl = this._settings.get_string('status-page-json-url');
+                services = await this._fetchFromStatusPage(baseUrl, statusPageSlug, statusPageEndpoint, statusPageJsonUrl);
+            }
+
+            this._availableServices = services;
+            this._updateServiceDropdowns();
+            
+        } catch (error) {
+            this._showError(`${_('Failed to fetch services')}: ${error.message}`);
+            console.error('Service fetch error:', error);
+        } finally {
+            button.sensitive = true;
+            button.label = _('Fetch');
+        }
+    }
+
+    async _fetchFromStatusPage(baseUrl, slug, endpointTemplate, jsonUrl) {
+        let endpoint = jsonUrl || '';
+        if (!endpoint) {
+            const template = endpointTemplate || 'status/{{slug}}/status.json';
+            const encodedSlug = encodeURIComponent(slug);
+            endpoint = template.includes('{{slug}}') ? template.replace('{{slug}}', encodedSlug) : `${template}/${encodedSlug}`;
+        }
+
+        const url = this._joinUrl(baseUrl, endpoint);
+        const json = await this._getJson(url);
+        
+        // Parse status page format
+        const publicGroupList = json?.publicGroupList || [];
+        const services = [];
+        
+        for (const group of publicGroupList) {
+            const monitorList = group?.monitorList || [];
+            for (const monitor of monitorList) {
+                if (monitor.id && monitor.name) {
+                    services.push({
+                        id: String(monitor.id),
+                        name: monitor.name
+                    });
+                }
+            }
+        }
+        
+        return services;
+    }
+
+    async _fetchFromPrivateApi(baseUrl, apiEndpoint, apiKey) {
+        const url = this._joinUrl(baseUrl, apiEndpoint);
+        const json = await this._getJson(url, {
+            'Accept': 'application/json',
+            'Authorization': apiKey
+        });
+        
+        // Parse API format
+        const monitorList = json?.monitorList || [];
+        const services = [];
+        
+        for (const monitor of monitorList) {
+            if (monitor.id && monitor.name) {
+                services.push({
+                    id: String(monitor.id),
+                    name: monitor.name
+                });
+            }
+        }
+        
+        return services;
+    }
+
+    async _getJson(url, headers = {}) {
+        return new Promise((resolve, reject) => {
+            const session = new Soup.Session({ timeout: 10 });
+            const message = Soup.Message.new('GET', url);
+            
+            message.request_headers.replace('Accept', 'application/json');
+            for (const [key, value] of Object.entries(headers)) {
+                message.request_headers.replace(key, value);
+            }
+
+            session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (sess, result) => {
+                try {
+                    const bytes = session.send_and_read_finish(result);
+                    const status = message.get_status();
+
+                    if (status < 200 || status >= 300) {
+                        reject(new Error(`HTTP ${status}`));
+                        return;
+                    }
+
+                    const data = bytes.get_data();
+                    const text = new TextDecoder().decode(data);
+                    resolve(JSON.parse(text));
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    _joinUrl(base, path) {
+        if (!base) return path;
+        if (!path) return base;
+        if (path.startsWith('http://') || path.startsWith('https://')) return path;
+        const cleanedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+        const cleanedPath = path.startsWith('/') ? path.slice(1) : path;
+        return `${cleanedBase}/${cleanedPath}`;
+    }
+
+    _updateServiceDropdowns() {
+        const selectedServices = this._settings.get_strv('selected-services');
+        
+        for (let i = 0; i < this._serviceDropdowns.length; i++) {
+            const dropdown = this._serviceDropdowns[i];
+            const model = dropdown.model;
+            
+            // Clear existing items except "None"
+            while (model.get_n_items() > 1) {
+                model.remove(1);
+            }
+            
+            // Add all available services
+            for (const service of this._availableServices) {
+                model.append(`${service.name} (ID: ${service.id})`);
+            }
+            
+            // Restore previous selection if it still exists
+            if (selectedServices[i]) {
+                const index = this._availableServices.findIndex(s => s.id === selectedServices[i]);
+                if (index !== -1) {
+                    dropdown.selected = index + 1; // +1 because of "None" option
+                } else {
+                    dropdown.selected = 0;
+                }
+            } else {
+                dropdown.selected = 0;
+            }
+        }
+    }
+
+    _onServiceSelected() {
+        const selectedServices = [];
+        
+        for (const dropdown of this._serviceDropdowns) {
+            const selected = dropdown.selected;
+            if (selected > 0 && selected <= this._availableServices.length) {
+                const service = this._availableServices[selected - 1];
+                selectedServices.push(service.id);
+            }
+        }
+        
+        this._settings.set_strv('selected-services', selectedServices);
+    }
+
+    _showError(message) {
+        // In a real implementation, you might want to show a dialog
+        // For now, we'll just log it
+        console.error(message);
+        
+        // Try to show a toast if available (GNOME 42+)
+        if (this._window && this._window.add_toast) {
+            const toast = new Adw.Toast({
+                title: message,
+                timeout: 3
+            });
+            this._window.add_toast(toast);
+        }
     }
 
     _buildBehaviourGroup(page) {
@@ -224,7 +450,7 @@ class PreferencesBuilder {
 
     _buildAboutGroup(page) {
         const group = new Adw.PreferencesGroup({ title: _('About') });
-        const infoRow = new Adw.ActionRow({ title: _('Version'), subtitle: String(ExtensionUtils.getCurrentExtension().metadata.version ?? '1') });
+        const infoRow = new Adw.ActionRow({ title: _('Version'), subtitle: String(this._metadata?.version ?? '1') });
         infoRow.set_sensitive(false);
         group.add(infoRow);
 
@@ -266,67 +492,5 @@ class PreferencesBuilder {
             if (widget)
                 widget.visible = currentMode === 'api-key';
         });
-    }
-
-    async _storeApiKey(token) {
-        if (!this._secretAvailable || !token)
-            return;
-
-        await new Promise((resolve, reject) => {
-            Secret.password_store(SECRET_SCHEMA, { id: SECRET_KEY_ATTRIBUTE }, Secret.COLLECTION_DEFAULT, 'Uptime Kuma Indicator token', token, null, (source, result) => {
-                try {
-                    Secret.password_store_finish(result);
-                    resolve();
-                } catch (error) {
-                    logError(error, '[kuma-indicator] Failed to store token');
-                    reject(error);
-                }
-            });
-        }).catch(() => {});
-
-        this._refreshApiKeyStatus();
-    }
-
-    async _clearApiKey() {
-        if (!this._secretAvailable)
-            return;
-
-        await new Promise(resolve => {
-            Secret.password_clear(SECRET_SCHEMA, { id: SECRET_KEY_ATTRIBUTE }, null, (source, result) => {
-                try {
-                    Secret.password_clear_finish(result);
-                } catch (error) {
-                    logError(error, '[kuma-indicator] Failed to clear token');
-                } finally {
-                    resolve();
-                }
-            });
-        });
-
-        this._refreshApiKeyStatus();
-    }
-
-    async _refreshApiKeyStatus() {
-        if (!this._apiKeyStatus)
-            return;
-
-        if (!this._secretAvailable) {
-            this._apiKeyStatus.label = _('Unavailable');
-            return;
-        }
-
-        const token = await new Promise(resolve => {
-            Secret.password_lookup(SECRET_SCHEMA, { id: SECRET_KEY_ATTRIBUTE }, null, (source, result) => {
-                try {
-                    const value = Secret.password_lookup_finish(result);
-                    resolve(value ?? null);
-                } catch (error) {
-                    logError(error, '[kuma-indicator] Failed to read token');
-                    resolve(null);
-                }
-            });
-        });
-
-        this._apiKeyStatus.label = token ? _('Stored') : _('Not stored');
     }
 }

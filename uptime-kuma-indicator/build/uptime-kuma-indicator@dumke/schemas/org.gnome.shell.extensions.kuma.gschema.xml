@@ -61,5 +61,15 @@
       <summary>Enable demo data</summary>
       <description>Show mock monitors when no base URL is configured.</description>
     </key>
+    <key name="api-key" type="s">
+      <default>''</default>
+      <summary>API key for private API access</summary>
+      <description>API key stored in GSettings (fallback if Secret Service is unavailable). Note: This is less secure than using the Secret Service.</description>
+    </key>
+    <key name="selected-services" type="as">
+      <default>[]</default>
+      <summary>Selected service IDs to monitor</summary>
+      <description>Array of up to 4 service IDs (as strings) to monitor. If empty, all services are monitored.</description>
+    </key>
   </schema>
 </schemalist>
