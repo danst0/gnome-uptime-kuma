@@ -1,6 +1,6 @@
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
-import { normalizeApi, normalizeStatusPage } from './parsers.js';
+import { normalizeApi, normalizeMetrics, normalizeStatusPage } from './parsers.js';
 import { _ } from './i18n.js';
 
 const DEFAULT_TIMEOUT_SECONDS = 8;
@@ -59,11 +59,15 @@ export class MonitorFetcher {
     }
 
     async fetch(config, helpers = {}) {
-        const mode = config.apiMode === 'api-key' ? 'api-key' : 'status-page';
+        const rawMode = config.apiMode || 'status-page';
+        const mode = rawMode === 'metrics' ? 'metrics' : (rawMode === 'api-key' ? 'api-key' : 'status-page');
         const log = helpers.log ?? (() => {});
 
         if (mode === 'status-page')
             return this._fetchStatusPage(config, log);
+
+        if (mode === 'metrics')
+            return this._fetchMetrics(config, helpers, log);
 
         return this._fetchPrivateApi(config, helpers, log);
     }
@@ -113,7 +117,43 @@ export class MonitorFetcher {
         return { source: 'api', monitors };
     }
 
-    async _getJson(url, { headers = {}, method = 'GET', body = null } = {}) {
+    async _fetchMetrics(config, helpers, log) {
+        const { baseUrl, metricsEndpoint } = config;
+        if (!baseUrl)
+            throw new Error(_('Base URL is missing.'));
+
+        const getApiKey = helpers.getApiKey;
+        const apiKey = getApiKey ? await getApiKey() : null;
+        if (!apiKey)
+            throw new Error(_('API token is not available.'));
+
+        const endpoint = metricsEndpoint || 'metrics';
+        const url = joinUrl(baseUrl, endpoint);
+        log('debug', `Fetching Prometheus metrics from ${url}`);
+
+        const credentials = `:${apiKey}`;
+        const encoded = GLib.base64_encode(new TextEncoder().encode(credentials));
+
+        const text = await this._request(url, {
+            headers: {
+                Accept: 'text/plain',
+                Authorization: `Basic ${encoded}`,
+            },
+        });
+
+        const monitors = normalizeMetrics(text);
+        return { source: 'metrics', monitors };
+    }
+
+    async _getJson(url, options = {}) {
+        const text = await this._request(url, options);
+        if (!text)
+            return null;
+
+        return JSON.parse(text);
+    }
+
+    async _request(url, { headers = {}, method = 'GET', body = null, contentType = null } = {}) {
         let attempt = 0;
         let wait = 400;
         let lastError = null;
@@ -125,15 +165,33 @@ export class MonitorFetcher {
             for (const [key, value] of Object.entries(headers))
                 message.request_headers.replace(key, value);
 
-            if (body)
-                message.set_request_body_from_bytes('application/json', new GLib.Bytes(body));
+            if (body !== null && body !== undefined) {
+                let payload = body;
+                let mime = contentType;
+
+                if (payload instanceof GLib.Bytes) {
+                    message.set_request_body_from_bytes(mime ?? 'application/octet-stream', payload);
+                } else {
+                    if (typeof payload === 'string') {
+                        payload = new TextEncoder().encode(payload);
+                        mime = mime ?? 'text/plain';
+                    } else if (payload instanceof Uint8Array) {
+                        mime = mime ?? 'application/octet-stream';
+                    } else {
+                        payload = new TextEncoder().encode(JSON.stringify(payload));
+                        mime = mime ?? 'application/json';
+                    }
+
+                    message.set_request_body_from_bytes(mime, new GLib.Bytes(payload));
+                }
+            }
 
             try {
                 const bytes = await this._session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null);
                 const status = message.get_status();
 
                 if (status >= 200 && status < 300)
-                    return JSON.parse(bytesToString(bytes));
+                    return bytesToString(bytes);
 
                 lastError = new Error(`HTTP ${status}`);
             } catch (error) {

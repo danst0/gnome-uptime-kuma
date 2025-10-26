@@ -48,11 +48,11 @@ msgid "Uptime Kuma – no data yet"
 msgstr ""
 
 #: extension.js
-msgid "Uptime Kuma – %(up)d up / %(down)d down (as of %(time)s)"
+msgid "Uptime Kuma – %d up / %d down (as of %s)"
 msgstr ""
 
 #: extension.js
-msgid "%(up)d up / %(down)d down"
+msgid "%d up / %d down"
 msgstr ""
 
 #: extension.js
@@ -141,6 +141,14 @@ msgstr ""
 msgid "External Ping"
 msgstr ""
 
+#: utils/parsers.js
+msgid "Certificate invalid"
+msgstr ""
+
+#: utils/parsers.js
+msgid "Certificate expired %d days ago"
+msgstr ""
+
 #: prefs.js
 msgid "Connection"
 msgstr ""
@@ -158,7 +166,7 @@ msgid "API Mode"
 msgstr ""
 
 #: prefs.js
-msgid "Choose between public status page JSON or private API with token."
+msgid "Choose how the extension requests monitor data from Uptime Kuma."
 msgstr ""
 
 #: prefs.js
@@ -167,6 +175,10 @@ msgstr ""
 
 #: prefs.js
 msgid "Private API (token)"
+msgstr ""
+
+#: prefs.js
+msgid "Prometheus metrics (API key)"
 msgstr ""
 
 #: prefs.js
@@ -195,6 +207,14 @@ msgstr ""
 
 #: prefs.js
 msgid "Relative path, default: api/monitor"
+msgstr ""
+
+#: prefs.js
+msgid "Metrics endpoint"
+msgstr ""
+
+#: prefs.js
+msgid "Relative path, default: metrics"
 msgstr ""
 
 #: prefs.js

@@ -15,9 +15,9 @@ msgstr ""
 #: extension.js
 msgid "Refresh now"
 msgstr "Uppdatera nu"
-
-#: extension.js
-msgid "Open Uptime Kuma"
+#: prefs.js
+msgid "Choose how the extension requests monitor data from Uptime Kuma."
+msgstr "Välj hur tillägget hämtar övervakningsdata från Uptime Kuma."
 msgstr "Öppna Uptime Kuma"
 
 #: extension.js
@@ -26,14 +26,34 @@ msgstr "Inställningar…"
 
 #: extension.js
 msgid "About / Version"
+
+#: prefs.js
+msgid "Prometheus metrics (API key)"
+msgstr "Prometheus-mätvärden (API-nyckel)"
 msgstr "Om / Version"
 
 #: extension.js
 msgid "n/a"
+
+#: prefs.js
+msgid "Metrics endpoint"
+msgstr "Mätvärdesändpunkt"
+
+#: prefs.js
+msgid "Relative path, default: metrics"
+msgstr "Relativ sökväg, standard: metrics"
 msgstr "ej tillgängligt"
 
 #: extension.js
 msgid "Error"
+
+#: utils/parsers.js
+msgid "Certificate invalid"
+msgstr "Certifikatet är ogiltigt"
+
+#: utils/parsers.js
+msgid "Certificate expired %d days ago"
+msgstr "Certifikatet gick ut för %d dagar sedan"
 msgstr "Fel"
 
 #: extension.js
@@ -49,12 +69,12 @@ msgid "Uptime Kuma – no data yet"
 msgstr "Uptime Kuma – inga data ännu"
 
 #: extension.js
-msgid "Uptime Kuma – %(up)d up / %(down)d down (as of %(time)s)"
-msgstr "Uptime Kuma – %(up)d uppe / %(down)d nere (per %(time)s)"
+msgid "Uptime Kuma – %d up / %d down (as of %s)"
+msgstr "Uptime Kuma – %d uppe / %d nere (per %s)"
 
 #: extension.js
-msgid "%(up)d up / %(down)d down"
-msgstr "%(up)d uppe / %(down)d nere"
+msgid "%d up / %d down"
+msgstr "%d uppe / %d nere"
 
 #: extension.js
 msgid "Uptime Kuma Indicator"

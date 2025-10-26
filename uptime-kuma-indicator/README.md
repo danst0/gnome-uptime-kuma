@@ -6,7 +6,7 @@ GNOME Shell extension (GNOME 46–48) that embeds uptime information from your U
 
 - Persistent panel indicator with colored health dot and textual summary.
 - Scrollable popup listing monitors with status, latency, and relative timestamps.
-- Supports public status page JSON _and_ the authenticated REST API with Secret Service storage for the token.
+- Supports public status page JSON, the authenticated REST API, _and_ the Prometheus metrics endpoint with Secret Service storage for the token.
 - Configurable refresh cadence, appearance, list length, and logging verbosity.
 - Graceful error handling with informative tooltips and optional demo data for UI testing.
 - Fully localized using GNU gettext (English, German, Swedish, and Japanese included).
@@ -15,7 +15,7 @@ GNOME Shell extension (GNOME 46–48) that embeds uptime information from your U
 
 - GNOME Shell 46, 47, or 48
 - GJS with Soup 3 and libadwaita 1.4+
-- Uptime Kuma instance (0.10+) with either public status page JSON or API access
+- Uptime Kuma instance (0.10+) with either public status page JSON, API access, or metrics endpoint (with API key authentication)
 
 ## 🚀 Installation
 
@@ -55,10 +55,11 @@ Open the preferences dialog from the popup menu and configure:
 | Setting | Description |
 | ------- | ----------- |
 | **Base URL** | Fully qualified address of your Uptime Kuma instance (e.g. `https://status.example.com`). |
-| **API mode** | Choose between _Status page JSON (public)_ or _Private API (token)_. |
+| **API mode** | Choose between _Status page JSON (public)_, _Private API (token)_, or _Prometheus metrics (API key)_. |
 | **Status page slug / endpoint** | Used for public status pages. Template supports `{{slug}}`. |
 | **Status page JSON URL** | Optional absolute URL if your deployment deviates from the default pattern. |
-| **API endpoint** | Relative path for authenticated mode (default `api/monitor`). |
+| **API endpoint** | Relative path for authenticated REST mode (default `api/monitor`). |
+| **Metrics endpoint** | Relative path for metrics mode (default `metrics`). |
 | **API token** | Stored securely in Secret Service. Tokens are never written to GSettings. |
 | **Refresh interval** | Poll cadence in seconds (min 10). |
 | **Maximum monitors** | Limits the number of monitors displayed in the popup. |

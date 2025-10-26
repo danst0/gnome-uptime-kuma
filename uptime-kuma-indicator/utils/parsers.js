@@ -123,6 +123,103 @@ export function normalizeApi(payload) {
     return entries.map(entry => normalizeMonitor(entry));
 }
 
+function parsePrometheusLabels(labelString) {
+    const labels = {};
+    const regex = /([A-Za-z_][A-Za-z0-9_]*)="([^"\\]*(?:\\.[^"\\]*)*)"/g;
+    let match;
+    while ((match = regex.exec(labelString)) !== null)
+        labels[match[1]] = match[2].replace(/\\(.)/g, '$1');
+
+    return labels;
+}
+
+function parsePrometheusLine(line) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#'))
+        return null;
+
+    const match = /^([A-Za-z_][\w:]*)\{([^}]*)\}\s+([^\s]+)$/.exec(trimmed);
+    if (!match)
+        return null;
+
+    const [, metric, labelString, valueString] = match;
+    const value = Number(valueString);
+    if (!Number.isFinite(value))
+        return null;
+
+    const labels = parsePrometheusLabels(labelString);
+    return { metric, labels, value };
+}
+
+export function normalizeMetrics(text) {
+    if (!text)
+        return [];
+
+    const monitors = new Map();
+
+    for (const line of text.split('\n')) {
+        const entry = parsePrometheusLine(line);
+        if (!entry)
+            continue;
+
+        const { metric, labels, value } = entry;
+        if (!labels.monitor_name)
+            continue;
+
+        const key = `${labels.monitor_name}::${labels.monitor_url ?? ''}`;
+        const monitor = monitors.get(key) ?? {
+            id: labels.monitor_id ?? labels.monitor_name,
+            name: labels.monitor_name,
+            status: 'unknown',
+            latencyMs: null,
+            lastCheck: null,
+            message: null,
+            type: labels.monitor_type ?? null,
+        };
+
+        switch (metric) {
+        case 'monitor_status':
+            monitor.status = normalizeStatus(value);
+            break;
+        case 'monitor_response_time':
+            if (Number.isFinite(value) && value >= 0)
+                monitor.latencyMs = Math.round(value);
+            break;
+        case 'monitor_cert_days_remaining':
+            monitor._certDaysRemaining = value;
+            break;
+        case 'monitor_cert_is_valid':
+            monitor._certValid = value === 1;
+            break;
+        default:
+            break;
+        }
+
+        monitor.type = labels.monitor_type ?? monitor.type ?? null;
+        monitors.set(key, monitor);
+    }
+
+    const result = [];
+    for (const monitor of monitors.values()) {
+        if (monitor._certValid === false) {
+            monitor.message = _('Certificate invalid');
+            if (monitor.status === 'up')
+                monitor.status = 'degraded';
+        } else if (typeof monitor._certDaysRemaining === 'number' && monitor._certDaysRemaining < 0) {
+            const expiredDays = Math.abs(Math.round(monitor._certDaysRemaining));
+            monitor.message = _('Certificate expired %d days ago').format(expiredDays);
+            if (monitor.status === 'up')
+                monitor.status = 'degraded';
+        }
+
+        delete monitor._certValid;
+        delete monitor._certDaysRemaining;
+        result.push(monitor);
+    }
+
+    return result;
+}
+
 export function aggregateMonitors(monitors) {
     const summary = {
         up: 0,

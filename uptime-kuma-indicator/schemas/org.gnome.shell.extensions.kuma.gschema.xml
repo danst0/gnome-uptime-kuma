@@ -9,7 +9,7 @@
     <key name="api-mode" type="s">
       <default>'status-page'</default>
       <summary>Selected API mode</summary>
-      <description>Choose between status-page mode (public JSON) and api-key mode (private API).</description>
+      <description>Choose between status-page mode (public JSON), api-key mode (private API), and metrics mode (Prometheus endpoint).</description>
     </key>
     <key name="status-page-slug" type="s">
       <default>'default'</default>
@@ -30,6 +30,11 @@
       <default>'api/monitor'</default>
       <summary>Private API endpoint</summary>
       <description>Relative endpoint used when API key mode is enabled.</description>
+    </key>
+    <key name="metrics-endpoint" type="s">
+      <default>'metrics'</default>
+      <summary>Metrics endpoint path</summary>
+      <description>Relative endpoint that returns Prometheus metrics when metrics mode is enabled.</description>
     </key>
     <key name="refresh-seconds" type="i">
       <default>60</default>

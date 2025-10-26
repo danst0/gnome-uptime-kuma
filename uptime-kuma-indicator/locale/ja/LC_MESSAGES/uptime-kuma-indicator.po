@@ -15,9 +15,9 @@ msgstr ""
 #: extension.js
 msgid "Refresh now"
 msgstr "今すぐ更新"
-
-#: extension.js
-msgid "Open Uptime Kuma"
+#: prefs.js
+msgid "Choose how the extension requests monitor data from Uptime Kuma."
+msgstr "拡張機能が Uptime Kuma から監視データを取得する方法を選択します。"
 msgstr "Uptime Kuma を開く"
 
 #: extension.js
@@ -26,14 +26,34 @@ msgstr "設定…"
 
 #: extension.js
 msgid "About / Version"
+
+#: prefs.js
+msgid "Prometheus metrics (API key)"
+msgstr "Prometheus メトリクス (API キー)"
 msgstr "概要 / バージョン"
 
 #: extension.js
 msgid "n/a"
+
+#: prefs.js
+msgid "Metrics endpoint"
+msgstr "メトリクスエンドポイント"
+
+#: prefs.js
+msgid "Relative path, default: metrics"
+msgstr "相対パス。既定値: metrics"
 msgstr "該当なし"
 
 #: extension.js
 msgid "Error"
+
+#: utils/parsers.js
+msgid "Certificate invalid"
+msgstr "証明書が無効です"
+
+#: utils/parsers.js
+msgid "Certificate expired %d days ago"
+msgstr "証明書は %d 日前に期限切れになりました"
 msgstr "エラー"
 
 #: extension.js
@@ -49,12 +69,12 @@ msgid "Uptime Kuma – no data yet"
 msgstr "Uptime Kuma ― まだデータがありません"
 
 #: extension.js
-msgid "Uptime Kuma – %(up)d up / %(down)d down (as of %(time)s)"
-msgstr "Uptime Kuma ― 稼働 %(up)d / 停止 %(down)d （%(time)s 現在）"
+msgid "Uptime Kuma – %d up / %d down (as of %s)"
+msgstr "Uptime Kuma ― 稼働 %d / 停止 %d （%s 現在）"
 
 #: extension.js
-msgid "%(up)d up / %(down)d down"
-msgstr "稼働 %(up)d / 停止 %(down)d"
+msgid "%d up / %d down"
+msgstr "稼働 %d / 停止 %d"
 
 #: extension.js
 msgid "Uptime Kuma Indicator"

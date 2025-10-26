@@ -49,12 +49,12 @@ msgid "Uptime Kuma – no data yet"
 msgstr "Uptime Kuma – noch keine Daten"
 
 #: extension.js
-msgid "Uptime Kuma – %(up)d up / %(down)d down (as of %(time)s)"
-msgstr "Uptime Kuma – %(up)d oben / %(down)d ausgefallen (Stand: %(time)s)"
+msgid "Uptime Kuma – %d up / %d down (as of %s)"
+msgstr "Uptime Kuma – %d oben / %d ausgefallen (Stand: %s)"
 
 #: extension.js
-msgid "%(up)d up / %(down)d down"
-msgstr "%(up)d oben / %(down)d ausgefallen"
+msgid "%d up / %d down"
+msgstr "%d oben / %d ausgefallen"
 
 #: extension.js
 msgid "Uptime Kuma Indicator"
@@ -142,6 +142,14 @@ msgstr "Hintergrund-Jobs"
 msgid "External Ping"
 msgstr "Externer Ping"
 
+#: utils/parsers.js
+msgid "Certificate invalid"
+msgstr "Zertifikat ungültig"
+
+#: utils/parsers.js
+msgid "Certificate expired %d days ago"
+msgstr "Zertifikat ist vor %d Tagen abgelaufen"
+
 #: prefs.js
 msgid "Connection"
 msgstr "Verbindung"
@@ -159,8 +167,8 @@ msgid "API Mode"
 msgstr "API-Modus"
 
 #: prefs.js
-msgid "Choose between public status page JSON or private API with token."
-msgstr "Wähle zwischen öffentlicher Statusseite (JSON) oder privater API mit Token."
+msgid "Choose how the extension requests monitor data from Uptime Kuma."
+msgstr "Wähle, wie die Erweiterung Monitordaten von Uptime Kuma abruft."
 
 #: prefs.js
 msgid "Status page JSON (public)"
@@ -169,6 +177,10 @@ msgstr "Statusseite JSON (öffentlich)"
 #: prefs.js
 msgid "Private API (token)"
 msgstr "Private API (Token)"
+
+#: prefs.js
+msgid "Prometheus metrics (API key)"
+msgstr "Prometheus-Metriken (API-Schlüssel)"
 
 #: prefs.js
 msgid "Status page slug"
@@ -197,6 +209,14 @@ msgstr "API-Endpunkt"
 #: prefs.js
 msgid "Relative path, default: api/monitor"
 msgstr "Relativer Pfad, Standard: api/monitor"
+
+#: prefs.js
+msgid "Metrics endpoint"
+msgstr "Metriken-Endpunkt"
+
+#: prefs.js
+msgid "Relative path, default: metrics"
+msgstr "Relativer Pfad, Standard: metrics"
 
 #: prefs.js
 msgid "API token"

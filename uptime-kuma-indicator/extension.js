@@ -316,6 +316,8 @@ class KumaIndicator extends PanelMenu.Button {
             'status-page-endpoint',
             'status-page-json-url',
             'api-endpoint',
+            'metrics-endpoint',
+            'api-key',
             'refresh-seconds',
             'show-latency',
             'max-items',
@@ -336,7 +338,7 @@ class KumaIndicator extends PanelMenu.Button {
                 else if (key === 'log-level')
                     this._updateLogLevel();
 
-                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'demo-mode', 'max-items', 'show-latency', 'selected-services'].includes(key))
+                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'max-items', 'show-latency', 'selected-services'].includes(key))
                     this._refresh();
             });
             this._settingsConnections.push(id);
@@ -350,6 +352,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._config.statusPageEndpoint = this._settings.get_string('status-page-endpoint').trim();
         this._config.statusPageJsonUrl = this._settings.get_string('status-page-json-url').trim();
         this._config.apiEndpoint = this._settings.get_string('api-endpoint').trim();
+    this._config.metricsEndpoint = this._settings.get_string('metrics-endpoint').trim();
         this._config.refreshSeconds = Math.max(10, this._settings.get_int('refresh-seconds'));
         this._config.showLatency = this._settings.get_boolean('show-latency');
         this._config.maxItems = Math.max(1, this._settings.get_int('max-items'));
@@ -498,7 +501,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._summaryState = summary;
         this._lastRefresh = GLib.DateTime.new_now_local();
 
-        const text = _('%(up)d up / %(down)d down').format({ up: summary.up, down: summary.down });
+    const text = _('%d up / %d down').format(summary.up, summary.down);
         this._summaryLabel.text = text;
         this._switchDotClass(summary.status);
     }
@@ -512,11 +515,11 @@ class KumaIndicator extends PanelMenu.Button {
         // }
 
         // const timeString = this._lastRefresh.format('%H:%M:%S');
-        // const tooltip = _('Uptime Kuma – %(up)d up / %(down)d down (as of %(time)s)').format({
-        //     up: this._summaryState.up,
-        //     down: this._summaryState.down,
-        //     time: timeString,
-        // });
+    // const tooltip = _('Uptime Kuma – %d up / %d down (as of %s)').format(
+    //     this._summaryState.up,
+    //     this._summaryState.down,
+    //     timeString,
+    // );
         // this.set_tooltip_text(tooltip);
     }
 

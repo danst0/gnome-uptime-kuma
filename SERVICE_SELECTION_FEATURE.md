@@ -14,7 +14,7 @@ Added the ability to select up to 4 specific services from your Uptime Kuma inst
 - Includes a "Fetch Services" button to load available services from your Uptime Kuma instance
 - Provides 4 dropdown menus to select specific services
 - Each dropdown shows service name and ID (e.g., "My Website (ID: 123)")
-- Supports both status page (public) and private API modes
+- Supports status page (public), private API, and metrics modes
 - Shows loading state while fetching services
 - Displays errors via toast notifications if available
 
@@ -40,7 +40,7 @@ Added the ability to select up to 4 specific services from your Uptime Kuma inst
 - Maximum of 4 services can be selected at once
 - Filtering happens client-side after fetching all monitors
 - Selection persists across GNOME Shell restarts
-- Compatible with both status page JSON and private API modes
+- Compatible with status page JSON, private API, and metrics modes
 
 ## Files Modified
 

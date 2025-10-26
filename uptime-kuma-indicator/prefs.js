@@ -4,6 +4,7 @@ import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { _ } from './utils/i18n.js';
+import { normalizeMetrics } from './utils/parsers.js';
 
 export default class UptimeKumaPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -70,6 +71,7 @@ class PreferencesBuilder {
             this._buildEntry(_('Status page endpoint template'), 'status-page-endpoint'),
             this._buildEntry(_('Status page JSON URL'), 'status-page-json-url'),
             this._buildEntry(_('API endpoint'), 'api-endpoint'),
+            this._buildEntry(_('Metrics endpoint'), 'metrics-endpoint'),
         ];
         entries.forEach(widget => vbox.append(widget));
 
@@ -84,16 +86,20 @@ class PreferencesBuilder {
         baseUrlRow.connect('notify::text', row => this._settings.set_string('base-url', row.text.trim()));
         group.add(baseUrlRow);
 
-        const modeRow = new Adw.ActionRow({ title: _('API Mode'), subtitle: _('Choose between public status page JSON or private API with token.') });
-        const modeSelector = Gtk.DropDown.new_from_strings([
-            _('Status page JSON (public)'),
-            _('Private API (token)'),
-        ]);
-        modeSelector.selected = this._settings.get_string('api-mode') === 'api-key' ? 1 : 0;
+        const modeRow = new Adw.ActionRow({ title: _('API Mode'), subtitle: _('Choose how the extension requests monitor data from Uptime Kuma.') });
+        const modeOptions = [
+            { mode: 'status-page', label: _('Status page JSON (public)') },
+            { mode: 'api-key', label: _('Private API (token)') },
+            { mode: 'metrics', label: _('Prometheus metrics (API key)') },
+        ];
+        const modeSelector = Gtk.DropDown.new_from_strings(modeOptions.map(option => option.label));
+        const storedMode = this._settings.get_string('api-mode') || 'status-page';
+        const initialIndex = Math.max(0, modeOptions.findIndex(option => option.mode === storedMode));
+        modeSelector.selected = initialIndex;
         modeSelector.connect('notify::selected', widget => {
-            const value = widget.selected === 1 ? 'api-key' : 'status-page';
-            this._settings.set_string('api-mode', value);
-            this._updateVisibility(value);
+            const option = modeOptions[widget.selected] || modeOptions[0];
+            this._settings.set_string('api-mode', option.mode);
+            this._updateVisibility(option.mode);
         });
         modeRow.add_suffix(modeSelector);
         modeRow.activatable_widget = modeSelector;
@@ -126,6 +132,13 @@ class PreferencesBuilder {
         apiEndpointRow.connect('notify::text', row => this._settings.set_string('api-endpoint', row.text.trim()));
         group.add(apiEndpointRow);
         this._apiModeWidgets.set('api-endpoint', apiEndpointRow);
+
+        const metricsEndpointRow = new Adw.EntryRow({ title: _('Metrics endpoint'), text: this._settings.get_string('metrics-endpoint') });
+        metricsEndpointRow.set_show_apply_button(false);
+        metricsEndpointRow.subtitle = _('Relative path, default: metrics');
+        metricsEndpointRow.connect('notify::text', row => this._settings.set_string('metrics-endpoint', row.text.trim()));
+        group.add(metricsEndpointRow);
+        this._apiModeWidgets.set('metrics-endpoint', metricsEndpointRow);
 
         // API Token Entry Row
         const tokenRow = new Adw.EntryRow({ 
@@ -227,6 +240,15 @@ class PreferencesBuilder {
                 
                 const apiEndpoint = this._settings.get_string('api-endpoint') || 'api/monitor';
                 services = await this._fetchFromPrivateApi(baseUrl, apiEndpoint, apiKey);
+            } else if (apiMode === 'metrics') {
+                const apiKey = this._settings.get_string('api-key');
+                if (!apiKey) {
+                    this._showError(_('Please configure API token first.'));
+                    return;
+                }
+
+                const metricsEndpoint = this._settings.get_string('metrics-endpoint') || 'metrics';
+                services = await this._fetchFromMetrics(baseUrl, metricsEndpoint, apiKey);
             } else {
                 // Fetch from status page
                 const statusPageSlug = this._settings.get_string('status-page-slug') || 'default';
@@ -300,6 +322,26 @@ class PreferencesBuilder {
         return services;
     }
 
+    async _fetchFromMetrics(baseUrl, metricsEndpoint, apiKey) {
+        const url = this._joinUrl(baseUrl, metricsEndpoint);
+        const authHeader = this._encodeBasicAuth('', apiKey);
+        const text = await this._getText(url, {
+            'Accept': 'text/plain',
+            'Authorization': authHeader,
+        });
+
+        const monitors = normalizeMetrics(text) ?? [];
+        const unique = new Map();
+
+        for (const monitor of monitors) {
+            if (!monitor || !monitor.id || !monitor.name)
+                continue;
+            unique.set(String(monitor.id), monitor.name);
+        }
+
+        return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
+    }
+
     async _getJson(url, headers = {}) {
         return new Promise((resolve, reject) => {
             const session = new Soup.Session({ timeout: 10 });
@@ -323,6 +365,36 @@ class PreferencesBuilder {
                     const data = bytes.get_data();
                     const text = new TextDecoder().decode(data);
                     resolve(JSON.parse(text));
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    async _getText(url, headers = {}) {
+        return new Promise((resolve, reject) => {
+            const session = new Soup.Session({ timeout: 10 });
+            const message = Soup.Message.new('GET', url);
+
+            if (!headers.Accept)
+                message.request_headers.replace('Accept', 'text/plain');
+            for (const [key, value] of Object.entries(headers))
+                message.request_headers.replace(key, value);
+
+            session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (sess, result) => {
+                try {
+                    const bytes = session.send_and_read_finish(result);
+                    const status = message.get_status();
+
+                    if (status < 200 || status >= 300) {
+                        reject(new Error(`HTTP ${status}`));
+                        return;
+                    }
+
+                    const data = bytes.get_data();
+                    const text = new TextDecoder().decode(data);
+                    resolve(text);
                 } catch (error) {
                     reject(error);
                 }
@@ -399,6 +471,14 @@ class PreferencesBuilder {
         }
     }
 
+    _encodeBasicAuth(username, password) {
+        const user = username ?? '';
+        const pass = password ?? '';
+        const credentials = `${user}:${pass}`;
+        const encoded = GLib.base64_encode(new TextEncoder().encode(credentials));
+        return `Basic ${encoded}`;
+    }
+
     _buildBehaviourGroup(page) {
         const group = new Adw.PreferencesGroup({ title: _('Behaviour') });
 
@@ -471,7 +551,7 @@ class PreferencesBuilder {
     }
 
     _updateVisibility(mode) {
-        const currentMode = mode === 'api-key' ? 'api-key' : 'status-page';
+        const currentMode = mode || 'status-page';
 
         const statusWidgets = [
             this._apiModeWidgets.get('status'),
@@ -480,8 +560,11 @@ class PreferencesBuilder {
         ];
         const apiWidgets = [
             this._apiModeWidgets.get('api-endpoint'),
-            this._apiModeWidgets.get('api-token'),
         ];
+        const metricsWidgets = [
+            this._apiModeWidgets.get('metrics-endpoint'),
+        ];
+        const tokenRow = this._apiModeWidgets.get('api-token');
 
         statusWidgets.forEach(widget => {
             if (widget)
@@ -492,5 +575,13 @@ class PreferencesBuilder {
             if (widget)
                 widget.visible = currentMode === 'api-key';
         });
+
+        metricsWidgets.forEach(widget => {
+            if (widget)
+                widget.visible = currentMode === 'metrics';
+        });
+
+        if (tokenRow)
+            tokenRow.visible = currentMode === 'api-key' || currentMode === 'metrics';
     }
 }
