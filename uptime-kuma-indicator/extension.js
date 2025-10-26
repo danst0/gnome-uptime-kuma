@@ -534,25 +534,42 @@ class KumaIndicator extends PanelMenu.Button {
     }
 
     async _lookupApiKey() {
-        if (!Secret || !SECRET_SCHEMA)
-            return null;
+        let token = null;
 
-        return await new Promise(resolve => {
+        // Try Secret Service first
+        if (Secret && SECRET_SCHEMA) {
             try {
-                Secret.password_lookup(SECRET_SCHEMA, { id: SECRET_KEY_ATTRIBUTE }, null, (source, result) => {
+                token = await new Promise(resolve => {
                     try {
-                        const value = Secret.password_lookup_finish(result);
-                        resolve(value ?? null);
+                        Secret.password_lookup(SECRET_SCHEMA, { id: SECRET_KEY_ATTRIBUTE }, null, (source, result) => {
+                            try {
+                                const value = Secret.password_lookup_finish(result);
+                                resolve(value ?? null);
+                            } catch (error) {
+                                this._log('debug', `Secret lookup failed: ${error.message}`);
+                                resolve(null);
+                            }
+                        });
                     } catch (error) {
-                        this._log('error', `Secret lookup failed: ${error.message}`);
+                        this._log('debug', `Secret lookup invocation failed: ${error.message}`);
                         resolve(null);
                     }
                 });
             } catch (error) {
-                this._log('error', `Secret lookup invocation failed: ${error.message}`);
-                resolve(null);
+                this._log('debug', `Error accessing Secret Service: ${error.message}`);
             }
-        });
+        }
+
+        // Fallback to GSettings if not found in keyring
+        if (!token) {
+            const gsettingsToken = this._settings.get_string('api-key');
+            if (gsettingsToken && gsettingsToken.length > 0) {
+                this._log('debug', 'Using API key from GSettings (fallback)');
+                token = gsettingsToken;
+            }
+        }
+
+        return token;
     }
 
     _openBaseUrl() {
