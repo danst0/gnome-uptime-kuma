@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="org.gnome.shell.extensions.kuma" path="/org/gnome/shell/extensions/kuma/">
+  <schema id="org.gnome.shell.extensions.kuma" path="/org/gnome/shell/extensions/uptime-kuma-indicator/">
     <key name="base-url" type="s">
       <default>''</default>
       <summary>Base URL of the Uptime Kuma instance</summary>

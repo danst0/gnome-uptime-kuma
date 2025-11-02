@@ -310,6 +310,12 @@ class KumaIndicator extends PanelMenu.Button {
             this._enableTimeoutId = 0;
         }
 
+        // Destroy all monitor rows
+        for (const row of this._rows.values()) {
+            row.destroy();
+        }
+        this._rows.clear();
+
         if (this._fetcher) {
             this._fetcher.destroy();
             this._fetcher = null;
@@ -318,6 +324,11 @@ class KumaIndicator extends PanelMenu.Button {
         for (const id of this._settingsConnections)
             this._settings.disconnect(id);
         this._settingsConnections = [];
+
+        // Release settings reference
+        if (this._settings) {
+            this._settings = null;
+        }
     }
 
     _bindSettings() {
