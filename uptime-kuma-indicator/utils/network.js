@@ -1,5 +1,5 @@
 import GLib from 'gi://GLib';
-import Soup from 'gi://Soup?version=3.0';
+import Soup from 'gi://Soup';
 import { normalizeApi, normalizeMetrics, normalizeStatusPage } from './parsers.js';
 import { _ } from './i18n.js';
 
@@ -19,7 +19,7 @@ function bytesToString(bytes) {
         }
         return new TextDecoder().decode(bytes);
     } catch (error) {
-        log('[kuma-indicator] Failed to decode bytes: ' + error.message);
+        console.error('[kuma-indicator] Failed to decode bytes: ' + error.message);
         return '';
     }
 }
@@ -37,11 +37,15 @@ function joinUrl(base, path) {
 }
 
 function sleepAsync(milliseconds) {
-    return new Promise(resolve => {
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, milliseconds, () => {
+    return new Promise((resolve, reject) => {
+        const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, milliseconds, () => {
             resolve();
             return GLib.SOURCE_REMOVE;
         });
+        
+        // Store timeout ID so it can be cleaned up if needed
+        if (timeoutId === 0)
+            reject(new Error('Failed to create timeout'));
     });
 }
 
@@ -56,6 +60,13 @@ export class MonitorFetcher {
             timeout: timeoutSeconds,
         });
         this._session.allow_tls = true;
+    }
+
+    destroy() {
+        if (this._session) {
+            this._session.abort();
+            this._session = null;
+        }
     }
 
     async fetch(config, helpers = {}) {

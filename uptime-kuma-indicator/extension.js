@@ -223,6 +223,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._settings = extension.getSettings();
         this._settingsConnections = [];
         this._refreshLoopId = 0;
+        this._enableTimeoutId = 0;
         this._isRefreshing = false;
         this._rows = new Map();
         this._lastRefresh = null;
@@ -291,8 +292,9 @@ class KumaIndicator extends PanelMenu.Button {
     start() {
         this._log('debug', 'Indicator started');
         this._scheduleRefresh();
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, REFRESH_ON_ENABLE_DELAY_MS, () => {
+        this._enableTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, REFRESH_ON_ENABLE_DELAY_MS, () => {
             this._refresh();
+            this._enableTimeoutId = 0;
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -301,6 +303,16 @@ class KumaIndicator extends PanelMenu.Button {
         if (this._refreshLoopId) {
             GLib.source_remove(this._refreshLoopId);
             this._refreshLoopId = 0;
+        }
+
+        if (this._enableTimeoutId) {
+            GLib.source_remove(this._enableTimeoutId);
+            this._enableTimeoutId = 0;
+        }
+
+        if (this._fetcher) {
+            this._fetcher.destroy();
+            this._fetcher = null;
         }
 
         for (const id of this._settingsConnections)
@@ -586,9 +598,11 @@ class KumaIndicator extends PanelMenu.Button {
 
         const prefix = '[kuma-indicator]';
         if (effectiveLevel === 'error')
-            logError(new Error(`${prefix} ${message}`));
+            console.error(`${prefix} ${message}`);
+        else if (effectiveLevel === 'debug')
+            console.debug(`${prefix} ${message}`);
         else
-            log(`${prefix} [${effectiveLevel}] ${message}`);
+            console.log(`${prefix} [${effectiveLevel}] ${message}`);
     }
 });
 

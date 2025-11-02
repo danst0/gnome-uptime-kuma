@@ -1,7 +1,7 @@
-import Gtk from 'gi://Gtk?version=4.0';
-import Adw from 'gi://Adw?version=1';
+import Gtk from 'gi://Gtk';
+import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
-import Soup from 'gi://Soup?version=3.0';
+import Soup from 'gi://Soup';
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { _ } from './utils/i18n.js';
 import { normalizeMetrics } from './utils/parsers.js';
@@ -12,12 +12,6 @@ export default class UptimeKumaPreferences extends ExtensionPreferences {
         const builder = new PreferencesBuilder(settings, window, this.metadata);
         if (!Adw && builder.widget)
             window.add(builder.widget);
-    }
-
-    getPreferencesWidget() {
-        const settings = this.getSettings();
-        const builder = new PreferencesBuilder(settings, null, this.metadata);
-        return builder.widget;
     }
 }
 
