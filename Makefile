@@ -2,17 +2,45 @@ UUID := uptime-kuma-indicator@uptime.dumke.me
 EXT_DIR := uptime-kuma-indicator
 PACKAGE := $(UUID).shell-extension.zip
 EXTRA_FILES := prefs.js stylesheet.css LICENSE README.md
-EXTRA_DIRS := utils
+EXTRA_DIRS := utils locale
 LOCALE_DIR := locale
+LOCALE_BACKUP := /tmp/uptime-kuma-locale-backup
 SCHEMA_DIR := schemas
+PO_FILES := $(wildcard $(EXT_DIR)/$(LOCALE_DIR)/*/LC_MESSAGES/*.po)
+MO_FILES := $(PO_FILES:.po=.mo)
 
-.PHONY: pack install clean
+.PHONY: pack install clean translations
 
-pack: clean
+translations: $(MO_FILES)
+
+%.mo: %.po
+	@echo "Compiling translation: $<"
+	msgfmt $< -o $@
+
+pack: translations clean
+	@echo "Backing up .po and .pot files..."
+	@rm -rf "$(LOCALE_BACKUP)"
+	@mkdir -p "$(LOCALE_BACKUP)"
+	@cd "$(EXT_DIR)/$(LOCALE_DIR)" && \
+		if [ -f uptime-kuma-indicator.pot ]; then \
+			cp uptime-kuma-indicator.pot "$(LOCALE_BACKUP)/" && rm uptime-kuma-indicator.pot; \
+		fi
+	@cd "$(EXT_DIR)/$(LOCALE_DIR)" && \
+		for po in */LC_MESSAGES/*.po; do \
+			if [ -f "$$po" ]; then \
+				mkdir -p "$(LOCALE_BACKUP)/$$(dirname $$po)" && \
+				cp "$$po" "$(LOCALE_BACKUP)/$$po" && \
+				rm "$$po"; \
+			fi; \
+		done
 	@echo "Packing extension into $(PACKAGE)"
-	cd "$(EXT_DIR)" && gnome-extensions pack --force --podir=$(LOCALE_DIR) $(foreach file,$(EXTRA_FILES),--extra-source=$(file)) $(foreach dir,$(EXTRA_DIRS),--extra-source=$(dir)) .
+	cd "$(EXT_DIR)" && gnome-extensions pack --force $(foreach file,$(EXTRA_FILES),--extra-source=$(file)) $(foreach dir,$(EXTRA_DIRS),--extra-source=$(dir)) .
+	@echo "Restoring .po and .pot files..."
+	@cp -r "$(LOCALE_BACKUP)"/* "$(EXT_DIR)/$(LOCALE_DIR)/" 2>/dev/null || true
+	@rm -rf "$(LOCALE_BACKUP)"
 	mv "$(EXT_DIR)/$(PACKAGE)" .
 	@echo "Package created: $(PACKAGE)"
+	@echo "✓ Only .mo files included in package (not .po or .pot)"
 
 install: pack
 	@echo "Installing extension from $(PACKAGE)"

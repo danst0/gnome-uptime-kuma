@@ -1,0 +1,332 @@
+# English translations for Uptime Kuma Indicator package.
+# Copyright (C) 2025 THE Uptime Kuma Indicator'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Uptime Kuma Indicator package.
+# Automatically generated, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Uptime Kuma Indicator 1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/danst0/gnome-uptime-kuma\n"
+"POT-Creation-Date: 2025-11-02 14:21+0100\n"
+"PO-Revision-Date: 2025-11-02 14:21+0100\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: extension.js:58
+#, javascript-format
+msgid "%d second ago"
+msgid_plural "%d seconds ago"
+msgstr[0] "%d second ago"
+msgstr[1] "%d seconds ago"
+
+#: extension.js:62
+#, javascript-format
+msgid "%d minute ago"
+msgid_plural "%d minutes ago"
+msgstr[0] "%d minute ago"
+msgstr[1] "%d minutes ago"
+
+#: extension.js:66
+#, javascript-format
+msgid "%d hour ago"
+msgid_plural "%d hours ago"
+msgstr[0] "%d hour ago"
+msgstr[1] "%d hours ago"
+
+#: extension.js:70
+#, javascript-format
+msgid "%d day ago"
+msgid_plural "%d days ago"
+msgstr[0] "%d day ago"
+msgstr[1] "%d days ago"
+
+#: extension.js:73
+#, javascript-format
+msgid "%d week ago"
+msgid_plural "%d weeks ago"
+msgstr[0] "%d week ago"
+msgstr[1] "%d weeks ago"
+
+#: extension.js:146
+msgid "n/a"
+msgstr "n/a"
+
+#: extension.js:259
+msgid "—/—"
+msgstr "—/—"
+
+#: extension.js:275
+msgid "Refresh now"
+msgstr "Refresh now"
+
+#: extension.js:278
+msgid "Open Uptime Kuma"
+msgstr "Open Uptime Kuma"
+
+#: extension.js:279
+msgid "Preferences…"
+msgstr "Preferences…"
+
+#: extension.js:280
+msgid "About / Version"
+msgstr "About / Version"
+
+#: extension.js:486
+msgid "Error"
+msgstr "Error"
+
+#: extension.js:538
+#, javascript-format
+msgid "%d up / %d down"
+msgstr "%d up / %d down"
+
+#: extension.js:586 extension.js:592
+msgid "Uptime Kuma Indicator"
+msgstr "Uptime Kuma Indicator"
+
+#: extension.js:586
+msgid "Failed to open base URL."
+msgstr "Failed to open base URL."
+
+#: extension.js:592
+#, javascript-format
+msgid "Version %s"
+msgstr "Version %s"
+
+#: prefs.js:54
+msgid "GTK-only fallback – consider installing libadwaita."
+msgstr "GTK-only fallback – consider installing libadwaita."
+
+#: prefs.js:62 prefs.js:77
+msgid "Base URL"
+msgstr "Base URL"
+
+#: prefs.js:63
+msgid "Status page slug"
+msgstr "Status page slug"
+
+#: prefs.js:64
+msgid "Status page endpoint template"
+msgstr "Status page endpoint template"
+
+#: prefs.js:65
+msgid "Status page JSON URL"
+msgstr "Status page JSON URL"
+
+#: prefs.js:66
+msgid "API endpoint"
+msgstr "API endpoint"
+
+#: prefs.js:67 prefs.js:82
+msgid "Metrics endpoint"
+msgstr "Metrics endpoint"
+
+#: prefs.js:75
+msgid "Connection"
+msgstr "Connection"
+
+#: prefs.js:75
+msgid "Configure how to contact your Uptime Kuma Prometheus metrics endpoint."
+msgstr "Configure how to contact your Uptime Kuma Prometheus metrics endpoint."
+
+#: prefs.js:84
+msgid "Relative path, default: metrics"
+msgstr "Relative path, default: metrics"
+
+#: prefs.js:90
+msgid "API token"
+msgstr "API token"
+
+#: prefs.js:108
+msgid "Service Selection"
+msgstr "Service Selection"
+
+#: prefs.js:109
+msgid ""
+"Select up to 4 specific services to monitor. Leave empty to monitor all "
+"services."
+msgstr ""
+"Select up to 4 specific services to monitor. Leave empty to monitor all "
+"services."
+
+#: prefs.js:114
+msgid "Fetch Services"
+msgstr "Fetch Services"
+
+#: prefs.js:115
+msgid "Load available services from your Uptime Kuma instance."
+msgstr "Load available services from your Uptime Kuma instance."
+
+#: prefs.js:118 prefs.js:213
+msgid "Fetch"
+msgstr "Fetch"
+
+#: prefs.js:132
+msgid "Service"
+msgstr "Service"
+
+#: prefs.js:133
+msgid "Select a service to monitor"
+msgstr "Select a service to monitor"
+
+#: prefs.js:142
+msgid "(None)"
+msgstr "(None)"
+
+#: prefs.js:165
+msgid "Fetching..."
+msgstr "Fetching..."
+
+#: prefs.js:172
+msgid "Please configure Base URL first."
+msgstr "Please configure Base URL first."
+
+#: prefs.js:182 prefs.js:191
+msgid "Please configure API token first."
+msgstr "Please configure API token first."
+
+#: prefs.js:209
+msgid "Failed to fetch services"
+msgstr "Failed to fetch services"
+
+#: prefs.js:428
+msgid "Behaviour"
+msgstr "Behaviour"
+
+#: prefs.js:430
+msgid "Refresh interval (seconds)"
+msgstr "Refresh interval (seconds)"
+
+#: prefs.js:430
+msgid "Minimum 10 seconds."
+msgstr "Minimum 10 seconds."
+
+#: prefs.js:434
+msgid "Maximum monitors to display"
+msgstr "Maximum monitors to display"
+
+#: prefs.js:438
+msgid "Show latency"
+msgstr "Show latency"
+
+#: prefs.js:438
+msgid "Displays ping measurements when available."
+msgstr "Displays ping measurements when available."
+
+#: prefs.js:442
+msgid "Show text in panel"
+msgstr "Show text in panel"
+
+#: prefs.js:442
+msgid "Display status summary next to the indicator dot."
+msgstr "Display status summary next to the indicator dot."
+
+#: prefs.js:446
+msgid "Enable demo data"
+msgstr "Enable demo data"
+
+#: prefs.js:446
+msgid "Use mock monitors when no base URL is configured."
+msgstr "Use mock monitors when no base URL is configured."
+
+#: prefs.js:450
+msgid "Appearance"
+msgstr "Appearance"
+
+#: prefs.js:452
+msgid "Normal"
+msgstr "Normal"
+
+#: prefs.js:453
+msgid "Compact"
+msgstr "Compact"
+
+#: prefs.js:463
+msgid "Log level"
+msgstr "Log level"
+
+#: prefs.js:465
+msgid "Errors only"
+msgstr "Errors only"
+
+#: prefs.js:466
+msgid "Informational"
+msgstr "Informational"
+
+#: prefs.js:467
+msgid "Debug"
+msgstr "Debug"
+
+#: prefs.js:481
+msgid "About"
+msgstr "About"
+
+#: prefs.js:482
+msgid "Version"
+msgstr "Version"
+
+#: prefs.js:486
+msgid "Need help?"
+msgstr "Need help?"
+
+#: prefs.js:486
+msgid "Check the README for configuration examples."
+msgstr "Check the README for configuration examples."
+
+#: utils/network.js:90 utils/network.js:110 utils/network.js:134
+msgid "Base URL is missing."
+msgstr "Base URL is missing."
+
+#: utils/network.js:115 utils/network.js:139
+msgid "API token is not available."
+msgstr "API token is not available."
+
+#: utils/network.js:220
+msgid "Unknown network error"
+msgstr "Unknown network error"
+
+#: utils/parsers.js:86
+msgid "Unnamed monitor"
+msgstr "Unnamed monitor"
+
+#: utils/parsers.js:205
+msgid "Certificate invalid"
+msgstr "Certificate invalid"
+
+#: utils/parsers.js:210
+#, javascript-format
+msgid "Certificate expired %d days ago"
+msgstr "Certificate expired %d days ago"
+
+#: utils/parsers.js:280
+msgid "Frontend"
+msgstr "Frontend"
+
+#: utils/parsers.js:281
+msgid "API Gateway"
+msgstr "API Gateway"
+
+#: utils/parsers.js:281
+msgid "Slight latency increase detected"
+msgstr "Slight latency increase detected"
+
+#: utils/parsers.js:282
+msgid "Database"
+msgstr "Database"
+
+#: utils/parsers.js:282
+msgid "No heartbeat received"
+msgstr "No heartbeat received"
+
+#: utils/parsers.js:283
+msgid "Background Jobs"
+msgstr "Background Jobs"
+
+#: utils/parsers.js:284
+msgid "External Ping"
+msgstr "External Ping"

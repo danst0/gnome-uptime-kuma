@@ -36,24 +36,12 @@ function joinUrl(base, path) {
     return `${cleanedBase}/${cleanedPath}`;
 }
 
-function sleepAsync(milliseconds) {
-    return new Promise((resolve, reject) => {
-        const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, milliseconds, () => {
-            resolve();
-            return GLib.SOURCE_REMOVE;
-        });
-        
-        // Store timeout ID so it can be cleaned up if needed
-        if (timeoutId === 0)
-            reject(new Error('Failed to create timeout'));
-    });
-}
-
 export class MonitorFetcher {
     constructor({ timeoutSeconds = DEFAULT_TIMEOUT_SECONDS, retries = DEFAULT_RETRIES, backoff = RETRY_BACKOFF } = {}) {
         this._timeoutSeconds = timeoutSeconds;
         this._retries = retries;
         this._backoff = backoff;
+        this._activeTimeouts = new Set();
 
         this._session = new Soup.Session({
             user_agent: USER_AGENT,
@@ -63,6 +51,12 @@ export class MonitorFetcher {
     }
 
     destroy() {
+        // Remove all active timeouts
+        for (const timeoutId of this._activeTimeouts) {
+            GLib.source_remove(timeoutId);
+        }
+        this._activeTimeouts.clear();
+        
         if (this._session) {
             this._session.abort();
             this._session = null;
@@ -210,8 +204,21 @@ export class MonitorFetcher {
             }
 
             attempt++;
-            if (attempt < this._retries)
-                await sleepAsync(wait);
+            if (attempt < this._retries) {
+                await new Promise((resolve, reject) => {
+                    const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, wait, () => {
+                        this._activeTimeouts.delete(timeoutId);
+                        resolve();
+                        return GLib.SOURCE_REMOVE;
+                    });
+                    
+                    if (timeoutId === 0) {
+                        reject(new Error('Failed to create timeout'));
+                    } else {
+                        this._activeTimeouts.add(timeoutId);
+                    }
+                });
+            }
             wait = Math.min(wait * this._backoff, 4000);
         }
 
