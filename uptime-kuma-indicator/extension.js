@@ -292,6 +292,9 @@ class KumaIndicator extends PanelMenu.Button {
     start() {
         this._log('debug', 'Indicator started');
         this._scheduleRefresh();
+        if (this._enableTimeoutId) {
+            GLib.source_remove(this._enableTimeoutId);
+        }
         this._enableTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, REFRESH_ON_ENABLE_DELAY_MS, () => {
             this._refresh();
             this._enableTimeoutId = 0;
