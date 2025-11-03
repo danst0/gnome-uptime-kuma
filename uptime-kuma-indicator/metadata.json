@@ -8,5 +8,6 @@
   "url": "https://github.com/danst0/gnome-uptime-kuma",
   "donations": {
     "liberapay": "danst0"
-  }
+  },
+  "version-name": "1.1"
 }

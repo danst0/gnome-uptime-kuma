@@ -8,7 +8,7 @@ LOCALE_BACKUP := /tmp/uptime-kuma-locale-backup
 SCHEMA_DIR := schemas
 PO_FILES := $(wildcard $(EXT_DIR)/$(LOCALE_DIR)/*/LC_MESSAGES/*.po)
 MO_FILES := $(PO_FILES:.po=.mo)
-VERSION := $(shell grep -Po '"version":\s*\K\d+' $(EXT_DIR)/metadata.json)
+VERSION := $(shell grep -Po '"version-name":\s*"\K[^"]+' $(EXT_DIR)/metadata.json)
 
 .PHONY: pack install clean translations release tag-release
 
