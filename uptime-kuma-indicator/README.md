@@ -116,4 +116,4 @@ Some self-hosted deployments change the status page endpoint layout. Use the **S
 
 ## 📄 License
 
-This project is distributed under the MIT License. See [`LICENSE`](LICENSE) for details.
+This project is distributed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. See [`LICENSE`](LICENSE) for details.

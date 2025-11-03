@@ -3,7 +3,7 @@
 <div align="center">
 
 ![GNOME Shell Extension](https://img.shields.io/badge/GNOME%20Shell-46%20%7C%2047%20%7C%2048%20%7C%2049-blue?style=flat-square&logo=gnome)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+![License](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-green?style=flat-square)
 ![Version](https://img.shields.io/badge/version-4-orange?style=flat-square)
 
 **Monitor your [Uptime Kuma](https://github.com/louislam/uptime-kuma) services directly from your GNOME desktop.**
@@ -218,7 +218,7 @@ uptime-kuma-indicator/
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](uptime-kuma-indicator/LICENSE) file for details.
+This project is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. See the [LICENSE](uptime-kuma-indicator/LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -241,3 +241,5 @@ This project is licensed under the MIT License - see the [LICENSE](uptime-kuma-i
 If you find this extension useful, please ⭐ star the repository!
 
 </div>
+<script src="https://liberapay.com/danst0/widgets/button.js"></script>
+<noscript><a href="https://liberapay.com/danst0/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a></noscript>
