@@ -5,5 +5,8 @@
   "shell-version": ["46", "47", "48", "49"],
   "settings-schema": "org.gnome.shell.extensions.kuma",
   "gettext-domain": "uptime-kuma-indicator",
-  "url": "https://github.com/danst0/gnome-uptime-kuma"
+  "url": "https://github.com/danst0/gnome-uptime-kuma",
+  "donations": {
+    "liberapay": "danst0"
+  }
 }

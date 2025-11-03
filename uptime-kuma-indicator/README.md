@@ -1,6 +1,6 @@
 # Uptime Kuma Indicator
 
-GNOME Shell extension (GNOME 46–48) that embeds uptime information from your Uptime Kuma instance directly into the top bar.
+GNOME Shell extension (GNOME 46–49) that embeds uptime information from your Uptime Kuma instance directly into the top bar.
 
 ## ✨ Features
 
@@ -13,11 +13,21 @@ GNOME Shell extension (GNOME 46–48) that embeds uptime information from your U
 
 ## 📦 Requirements
 
-- GNOME Shell 46, 47, or 48
+- GNOME Shell 46, 47, 48, or 49
 - GJS with Soup 3 and libadwaita 1.4+
 - Uptime Kuma instance (0.10+) with either public status page JSON, API access, or metrics endpoint (with API key authentication)
 
 ## 🚀 Installation
+
+### From GNOME Extensions Website (Recommended)
+
+Install directly from [extensions.gnome.org](https://extensions.gnome.org/extension/8710/uptime-kuma-indicator/):
+
+1. Visit the [extension page](https://extensions.gnome.org/extension/8710/uptime-kuma-indicator/)
+2. Click the **ON/OFF** toggle to install
+3. Configure the extension via the preferences dialog
+
+### Manual Installation
 
 Quick install from the project root:
 

@@ -32,3 +32,4 @@ node_modules/
 
 # Package files
 *.tar.gz
+GITHUB_PROJECT_INFO.md
