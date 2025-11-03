@@ -229,6 +229,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._lastRefresh = null;
         this._logLevelIndex = 1;
         this._fetcher = new MonitorFetcher();
+        this._previousMonitorStates = new Map(); // Track previous states for notifications
 
         this._summaryState = {
             up: 0,
@@ -352,6 +353,8 @@ class KumaIndicator extends PanelMenu.Button {
             'demo-mode',
             'selected-services',
             'show-text',
+            'enable-notifications',
+            'notify-on-recovery',
         ];
 
         for (const key of keys) {
@@ -367,7 +370,7 @@ class KumaIndicator extends PanelMenu.Button {
                 else if (key === 'show-text')
                     this._updateTextVisibility();
 
-                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'max-items', 'show-latency', 'selected-services'].includes(key))
+                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'max-items', 'show-latency', 'selected-services', 'enable-notifications', 'notify-on-recovery'].includes(key))
                     this._refresh();
             });
             this._settingsConnections.push(id);
@@ -390,6 +393,8 @@ class KumaIndicator extends PanelMenu.Button {
         this._config.demoMode = this._settings.get_boolean('demo-mode');
         this._config.selectedServices = this._settings.get_strv('selected-services');
         this._config.showText = this._settings.get_boolean('show-text');
+        this._config.enableNotifications = this._settings.get_boolean('enable-notifications');
+        this._config.notifyOnRecovery = this._settings.get_boolean('notify-on-recovery');
 
         this._applyAppearance();
         this._updateLogLevel();
@@ -464,6 +469,7 @@ class KumaIndicator extends PanelMenu.Button {
 
             monitors = monitors.slice(0, this._config.maxItems);
             this._updateMonitorList(monitors);
+            this._checkForStatusChanges(monitors);
             this._updateSummary(monitors);
             // Tooltips not supported in GNOME Shell 46+ for panel buttons
             // this._setTooltipFromSummary();
@@ -541,6 +547,53 @@ class KumaIndicator extends PanelMenu.Button {
     const text = _('%d up / %d down').format(summary.up, summary.down);
         this._summaryLabel.text = text;
         this._switchDotClass(summary.status);
+    }
+
+    _checkForStatusChanges(monitors) {
+        if (!this._config.enableNotifications)
+            return;
+
+        for (const monitor of monitors) {
+            const id = monitor.id;
+            const currentStatus = monitor.status;
+            const previousStatus = this._previousMonitorStates.get(id);
+
+            // Skip if this is the first time we see this monitor
+            if (previousStatus === undefined) {
+                this._previousMonitorStates.set(id, currentStatus);
+                continue;
+            }
+
+            // Check if status changed from up to down
+            if (previousStatus === 'up' && (currentStatus === 'down' || currentStatus === 'degraded')) {
+                this._sendNotification(
+                    _('Service Offline'),
+                    _('"%s" is now offline or degraded.').format(monitor.name)
+                );
+                this._log('info', `Monitor ${monitor.name} (${id}) went offline: ${previousStatus} → ${currentStatus}`);
+            }
+            // Check if status changed from down/degraded to up
+            else if ((previousStatus === 'down' || previousStatus === 'degraded') && currentStatus === 'up') {
+                if (this._config.notifyOnRecovery) {
+                    this._sendNotification(
+                        _('Service Recovered'),
+                        _('"%s" is back online.').format(monitor.name)
+                    );
+                    this._log('info', `Monitor ${monitor.name} (${id}) recovered: ${previousStatus} → ${currentStatus}`);
+                }
+            }
+
+            // Update the stored state
+            this._previousMonitorStates.set(id, currentStatus);
+        }
+    }
+
+    _sendNotification(title, message) {
+        try {
+            Main.notify(title, message);
+        } catch (error) {
+            this._log('error', `Failed to send notification: ${error.message}`);
+        }
     }
 
     // Tooltips not supported in GNOME Shell 46+ for panel buttons

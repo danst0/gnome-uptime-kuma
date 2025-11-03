@@ -85,6 +85,24 @@ msgstr "Error"
 msgid "%d up / %d down"
 msgstr "%d up / %d down"
 
+#: extension.js:553
+msgid "Service Offline"
+msgstr "Service Offline"
+
+#: extension.js:554
+#, javascript-format
+msgid "\"%s\" is now offline or degraded."
+msgstr "\"%s\" is now offline or degraded."
+
+#: extension.js:560
+msgid "Service Recovered"
+msgstr "Service Recovered"
+
+#: extension.js:561
+#, javascript-format
+msgid "\"%s\" is back online."
+msgstr "\"%s\" is back online."
+
 #: extension.js:586 extension.js:592
 msgid "Uptime Kuma Indicator"
 msgstr "Uptime Kuma Indicator"
@@ -227,14 +245,30 @@ msgid "Display status summary next to the indicator dot."
 msgstr "Display status summary next to the indicator dot."
 
 #: prefs.js:446
+msgid "Enable notifications"
+msgstr "Enable notifications"
+
+#: prefs.js:446
+msgid "Show desktop notifications when a service goes offline."
+msgstr "Show desktop notifications when a service goes offline."
+
+#: prefs.js:450
+msgid "Notify on recovery"
+msgstr "Notify on recovery"
+
+#: prefs.js:450
+msgid "Show desktop notifications when a service comes back online."
+msgstr "Show desktop notifications when a service comes back online."
+
+#: prefs.js:454
 msgid "Enable demo data"
 msgstr "Enable demo data"
 
-#: prefs.js:446
+#: prefs.js:454
 msgid "Use mock monitors when no base URL is configured."
 msgstr "Use mock monitors when no base URL is configured."
 
-#: prefs.js:450
+#: prefs.js:458
 msgid "Appearance"
 msgstr "Appearance"
 

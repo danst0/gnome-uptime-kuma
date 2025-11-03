@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: Uptime Kuma Indicator 1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/danst0/gnome-uptime-kuma\n"
 "POT-Creation-Date: 2025-11-02 14:21+0100\n"
-"PO-Revision-Date: 2025-11-02 15:33+0100\n"
+"PO-Revision-Date: 2025-11-03 00:00+0100\n"
 "Last-Translator: Daniel Dumke <uptime.kuma.extension.daniel@dumke.me>\n"
 "Language-Team: German\n"
 "Language: de\n"
@@ -22,310 +22,344 @@ msgstr ""
 #, javascript-format
 msgid "%d second ago"
 msgid_plural "%d seconds ago"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "vor %d Sekunde"
+msgstr[1] "vor %d Sekunden"
 
 #: extension.js:62
 #, javascript-format
 msgid "%d minute ago"
 msgid_plural "%d minutes ago"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "vor %d Minute"
+msgstr[1] "vor %d Minuten"
 
 #: extension.js:66
 #, javascript-format
 msgid "%d hour ago"
 msgid_plural "%d hours ago"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "vor %d Stunde"
+msgstr[1] "vor %d Stunden"
 
 #: extension.js:70
 #, javascript-format
 msgid "%d day ago"
 msgid_plural "%d days ago"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "vor %d Tag"
+msgstr[1] "vor %d Tagen"
 
 #: extension.js:73
 #, javascript-format
 msgid "%d week ago"
 msgid_plural "%d weeks ago"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "vor %d Woche"
+msgstr[1] "vor %d Wochen"
 
 #: extension.js:146
 msgid "n/a"
-msgstr ""
+msgstr "n. v."
 
 #: extension.js:259
 msgid "—/—"
-msgstr ""
+msgstr "—/—"
 
 #: extension.js:275
 msgid "Refresh now"
-msgstr ""
+msgstr "Jetzt aktualisieren"
 
 #: extension.js:278
 msgid "Open Uptime Kuma"
-msgstr ""
+msgstr "Uptime Kuma öffnen"
 
 #: extension.js:279
 msgid "Preferences…"
-msgstr ""
+msgstr "Einstellungen…"
 
 #: extension.js:280
 msgid "About / Version"
-msgstr ""
+msgstr "Info / Version"
 
 #: extension.js:486
 msgid "Error"
-msgstr ""
+msgstr "Fehler"
 
 #: extension.js:538
 #, javascript-format
 msgid "%d up / %d down"
-msgstr ""
+msgstr "%d online / %d offline"
+
+#: extension.js:553
+msgid "Service Offline"
+msgstr "Dienst offline"
+
+#: extension.js:554
+#, javascript-format
+msgid "\"%s\" is now offline or degraded."
+msgstr "„%s“ ist jetzt offline oder beeinträchtigt."
+
+#: extension.js:560
+msgid "Service Recovered"
+msgstr "Dienst wiederhergestellt"
+
+#: extension.js:561
+#, javascript-format
+msgid "\"%s\" is back online."
+msgstr "„%s“ ist wieder online."
 
 #: extension.js:586 extension.js:592
 msgid "Uptime Kuma Indicator"
-msgstr ""
+msgstr "Uptime Kuma Indicator"
 
 #: extension.js:586
 msgid "Failed to open base URL."
-msgstr ""
+msgstr "Basis-URL konnte nicht geöffnet werden."
 
 #: extension.js:592
 #, javascript-format
 msgid "Version %s"
-msgstr ""
+msgstr "Version %s"
 
 #: prefs.js:54
 msgid "GTK-only fallback – consider installing libadwaita."
-msgstr ""
+msgstr "Nur GTK‑Fallback – installieren Sie ggf. libadwaita."
 
 #: prefs.js:62 prefs.js:77
 msgid "Base URL"
-msgstr ""
+msgstr "Basis-URL"
 
 #: prefs.js:63
 msgid "Status page slug"
-msgstr ""
+msgstr "Slug der Statusseite"
 
 #: prefs.js:64
 msgid "Status page endpoint template"
-msgstr ""
+msgstr "Vorlage für Statusseiten-Endpunkt"
 
 #: prefs.js:65
 msgid "Status page JSON URL"
-msgstr ""
+msgstr "JSON-URL der Statusseite"
 
 #: prefs.js:66
 msgid "API endpoint"
-msgstr ""
+msgstr "API-Endpunkt"
 
 #: prefs.js:67 prefs.js:82
 msgid "Metrics endpoint"
-msgstr ""
+msgstr "Metrics-Endpunkt"
 
 #: prefs.js:75
 msgid "Connection"
-msgstr ""
+msgstr "Verbindung"
 
 #: prefs.js:75
 msgid "Configure how to contact your Uptime Kuma Prometheus metrics endpoint."
-msgstr ""
+msgstr "Konfigurieren Sie, wie der Prometheus‑Metriken‑Endpunkt Ihrer Uptime‑Kuma‑Instanz erreicht wird."
 
 #: prefs.js:84
 msgid "Relative path, default: metrics"
-msgstr ""
+msgstr "Relativer Pfad, Standard: metrics"
 
 #: prefs.js:90
 msgid "API token"
-msgstr ""
+msgstr "API-Token"
 
 #: prefs.js:108
 msgid "Service Selection"
-msgstr ""
+msgstr "Dienstauswahl"
 
 #: prefs.js:109
 msgid ""
 "Select up to 4 specific services to monitor. Leave empty to monitor all "
 "services."
-msgstr ""
+msgstr "Wählen Sie bis zu 4 bestimmte Dienste zur Überwachung. Leer lassen, um alle Dienste zu überwachen."
 
 #: prefs.js:114
 msgid "Fetch Services"
-msgstr ""
+msgstr "Dienste abrufen"
 
 #: prefs.js:115
 msgid "Load available services from your Uptime Kuma instance."
-msgstr ""
+msgstr "Verfügbare Dienste aus Ihrer Uptime‑Kuma‑Instanz laden."
 
 #: prefs.js:118 prefs.js:213
 msgid "Fetch"
-msgstr ""
+msgstr "Abrufen"
 
 #: prefs.js:132
 msgid "Service"
-msgstr ""
+msgstr "Dienst"
 
 #: prefs.js:133
 msgid "Select a service to monitor"
-msgstr ""
+msgstr "Wählen Sie einen zu überwachenden Dienst"
 
 #: prefs.js:142
 msgid "(None)"
-msgstr ""
+msgstr "(Keine)"
 
 #: prefs.js:165
 msgid "Fetching..."
-msgstr ""
+msgstr "Abrufen …"
 
 #: prefs.js:172
 msgid "Please configure Base URL first."
-msgstr ""
+msgstr "Bitte zuerst die Basis‑URL konfigurieren."
 
 #: prefs.js:182 prefs.js:191
 msgid "Please configure API token first."
-msgstr ""
+msgstr "Bitte zuerst das API‑Token konfigurieren."
 
 #: prefs.js:209
 msgid "Failed to fetch services"
-msgstr ""
+msgstr "Dienste konnten nicht abgerufen werden"
 
 #: prefs.js:428
 msgid "Behaviour"
-msgstr ""
+msgstr "Verhalten"
 
 #: prefs.js:430
 msgid "Refresh interval (seconds)"
-msgstr ""
+msgstr "Aktualisierungsintervall (Sekunden)"
 
 #: prefs.js:430
 msgid "Minimum 10 seconds."
-msgstr ""
+msgstr "Mindestens 10 Sekunden."
 
 #: prefs.js:434
 msgid "Maximum monitors to display"
-msgstr ""
+msgstr "Maximal anzuzeigende Monitore"
 
 #: prefs.js:438
 msgid "Show latency"
-msgstr ""
+msgstr "Latenz anzeigen"
 
 #: prefs.js:438
 msgid "Displays ping measurements when available."
-msgstr ""
+msgstr "Zeigt Ping‑Messwerte an, wenn verfügbar."
 
 #: prefs.js:442
 msgid "Show text in panel"
-msgstr ""
+msgstr "Text im Panel anzeigen"
 
 #: prefs.js:442
 msgid "Display status summary next to the indicator dot."
-msgstr ""
+msgstr "Statuszusammenfassung neben dem Punkt anzeigen."
 
 #: prefs.js:446
-msgid "Enable demo data"
-msgstr ""
+msgid "Enable notifications"
+msgstr "Benachrichtigungen aktivieren"
 
 #: prefs.js:446
-msgid "Use mock monitors when no base URL is configured."
-msgstr ""
+msgid "Show desktop notifications when a service goes offline."
+msgstr "Desktop‑Benachrichtigungen anzeigen, wenn ein Dienst offline geht."
 
 #: prefs.js:450
+msgid "Notify on recovery"
+msgstr "Bei Wiederherstellung benachrichtigen"
+
+#: prefs.js:450
+msgid "Show desktop notifications when a service comes back online."
+msgstr "Desktop‑Benachrichtigungen anzeigen, wenn ein Dienst wieder online ist."
+
+#: prefs.js:454
+msgid "Enable demo data"
+msgstr "Demo‑Daten aktivieren"
+
+#: prefs.js:454
+msgid "Use mock monitors when no base URL is configured."
+msgstr "Mock‑Monitore verwenden, wenn keine Basis‑URL konfiguriert ist."
+
+#: prefs.js:458
 msgid "Appearance"
-msgstr ""
+msgstr "Aussehen"
 
 #: prefs.js:452
 msgid "Normal"
-msgstr ""
+msgstr "Normal"
 
 #: prefs.js:453
 msgid "Compact"
-msgstr ""
+msgstr "Kompakt"
 
 #: prefs.js:463
 msgid "Log level"
-msgstr ""
+msgstr "Protokollstufe"
 
 #: prefs.js:465
 msgid "Errors only"
-msgstr ""
+msgstr "Nur Fehler"
 
 #: prefs.js:466
 msgid "Informational"
-msgstr ""
+msgstr "Informativ"
 
 #: prefs.js:467
 msgid "Debug"
-msgstr ""
+msgstr "Debug"
 
 #: prefs.js:481
 msgid "About"
-msgstr ""
+msgstr "Info"
 
 #: prefs.js:482
 msgid "Version"
-msgstr ""
+msgstr "Version"
 
 #: prefs.js:486
 msgid "Need help?"
-msgstr ""
+msgstr "Hilfe benötigt?"
 
 #: prefs.js:486
 msgid "Check the README for configuration examples."
-msgstr ""
+msgstr "Siehe README für Konfigurationsbeispiele."
 
 #: utils/network.js:90 utils/network.js:110 utils/network.js:134
 msgid "Base URL is missing."
-msgstr ""
+msgstr "Basis‑URL fehlt."
 
 #: utils/network.js:115 utils/network.js:139
 msgid "API token is not available."
-msgstr ""
+msgstr "API‑Token ist nicht verfügbar."
 
 #: utils/network.js:220
 msgid "Unknown network error"
-msgstr ""
+msgstr "Unbekannter Netzwerkfehler"
 
 #: utils/parsers.js:86
 msgid "Unnamed monitor"
-msgstr ""
+msgstr "Unbenannter Monitor"
 
 #: utils/parsers.js:205
 msgid "Certificate invalid"
-msgstr ""
+msgstr "Zertifikat ungültig"
 
 #: utils/parsers.js:210
 #, javascript-format
 msgid "Certificate expired %d days ago"
-msgstr ""
+msgstr "Zertifikat vor %d Tagen abgelaufen"
 
 #: utils/parsers.js:280
 msgid "Frontend"
-msgstr ""
+msgstr "Frontend"
 
 #: utils/parsers.js:281
 msgid "API Gateway"
-msgstr ""
+msgstr "API‑Gateway"
 
 #: utils/parsers.js:281
 msgid "Slight latency increase detected"
-msgstr ""
+msgstr "Leichte Latenzerhöhung erkannt"
 
 #: utils/parsers.js:282
 msgid "Database"
-msgstr ""
+msgstr "Datenbank"
 
 #: utils/parsers.js:282
 msgid "No heartbeat received"
-msgstr ""
+msgstr "Kein Heartbeat empfangen"
 
 #: utils/parsers.js:283
 msgid "Background Jobs"
-msgstr ""
+msgstr "Hintergrundaufgaben"
 
 #: utils/parsers.js:284
 msgid "External Ping"
-msgstr ""
+msgstr "Externer Ping"
