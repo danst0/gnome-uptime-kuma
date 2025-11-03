@@ -8,8 +8,9 @@ LOCALE_BACKUP := /tmp/uptime-kuma-locale-backup
 SCHEMA_DIR := schemas
 PO_FILES := $(wildcard $(EXT_DIR)/$(LOCALE_DIR)/*/LC_MESSAGES/*.po)
 MO_FILES := $(PO_FILES:.po=.mo)
+VERSION := $(shell grep -Po '"version":\s*\K\d+' $(EXT_DIR)/metadata.json)
 
-.PHONY: pack install clean translations
+.PHONY: pack install clean translations release tag-release
 
 translations: $(MO_FILES)
 
@@ -51,3 +52,43 @@ clean:
 	@echo "Removing packaged extension $(PACKAGE)"
 	rm -f "$(PACKAGE)"
 	rm -f "$(EXT_DIR)/$(PACKAGE)"
+
+# Create a GitHub release (requires gh CLI)
+release: pack
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: Could not determine version from metadata.json"; \
+		exit 1; \
+	fi
+	@echo "Creating release v$(VERSION)..."
+	@if ! command -v gh >/dev/null 2>&1; then \
+		echo "Error: GitHub CLI (gh) is not installed"; \
+		echo "Install with: sudo apt install gh  or  brew install gh"; \
+		exit 1; \
+	fi
+	@if ! gh auth status >/dev/null 2>&1; then \
+		echo "Error: Not authenticated with GitHub CLI"; \
+		echo "Run: gh auth login"; \
+		exit 1; \
+	fi
+	@echo "Creating git tag v$(VERSION)..."
+	git tag -a "v$(VERSION)" -m "Release version $(VERSION)" || true
+	git push origin "v$(VERSION)"
+	@echo "Creating GitHub release..."
+	gh release create "v$(VERSION)" \
+		"$(PACKAGE)#Extension Package" \
+		--title "v$(VERSION)" \
+		--notes "Release version $(VERSION)" \
+		--draft
+	@echo "✓ Draft release created at: https://github.com/danst0/gnome-uptime-kuma/releases"
+	@echo "  Edit the release notes and publish when ready."
+
+# Just create and push a git tag (no release)
+tag-release:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: Could not determine version from metadata.json"; \
+		exit 1; \
+	fi
+	@echo "Creating and pushing git tag v$(VERSION)..."
+	git tag -a "v$(VERSION)" -m "Release version $(VERSION)"
+	git push origin "v$(VERSION)"
+	@echo "✓ Tag v$(VERSION) created and pushed"
