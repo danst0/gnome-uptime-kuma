@@ -443,6 +443,10 @@ class PreferencesBuilder {
         showTextRow.connect('notify::active', row => this._settings.set_boolean('show-text', row.active));
         group.add(showTextRow);
 
+    const sparklineRow = new Adw.SwitchRow({ title: _('Show history sparkline'), subtitle: _('Display a 24-hour status bar next to each monitor.'), active: this._settings.get_boolean('show-sparkline') });
+    sparklineRow.connect('notify::active', row => this._settings.set_boolean('show-sparkline', row.active));
+    group.add(sparklineRow);
+
         const notificationsRow = new Adw.SwitchRow({ title: _('Enable notifications'), subtitle: _('Show desktop notifications when a service goes offline.'), active: this._settings.get_boolean('enable-notifications') });
         notificationsRow.connect('notify::active', row => this._settings.set_boolean('enable-notifications', row.active));
         group.add(notificationsRow);
