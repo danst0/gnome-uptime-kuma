@@ -7,6 +7,7 @@ GNOME Shell extension (GNOME 46–49) that embeds uptime information from your U
 - Persistent panel indicator with colored health dot and textual summary.
 - Scrollable popup listing monitors with status, latency, and relative timestamps.
 - Supports public status page JSON, the authenticated REST API, _and_ the Prometheus metrics endpoint with Secret Service storage for the token.
+- Optional 24-hour history sparklines for the panel summary and each monitor row.
 - Configurable refresh cadence, appearance, list length, and logging verbosity.
 - Graceful error handling with informative tooltips and optional demo data for UI testing.
 - Fully localized using GNU gettext (English, German, Swedish, and Japanese included).
@@ -74,6 +75,7 @@ Open the preferences dialog from the popup menu and configure:
 | **Refresh interval** | Poll cadence in seconds (min 10). |
 | **Maximum monitors** | Limits the number of monitors displayed in the popup. |
 | **Show latency** | Toggle visibility of response times. |
+| **Show history sparkline** | Display a 24-hour status sparkline in the panel indicator and monitor list. |
 | **Appearance** | Switch between normal and compact indicator layout. |
 | **Demo data** | Display bundled mock monitors whenever no base URL is set. |
 | **Log level** | Adjust verbosity of journal messages (Errors, Info, Debug). |
