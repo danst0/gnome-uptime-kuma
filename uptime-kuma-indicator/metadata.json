@@ -7,7 +7,8 @@
   "gettext-domain": "uptime-kuma-indicator",
   "url": "https://github.com/danst0/gnome-uptime-kuma",
   "donations": {
-    "liberapay": "danst0"
+    "liberapay": "danst0",
+    "paypal": "dumke"
   },
-  "version-name": "1.1"
+  "version-name": "1.2"
 }
