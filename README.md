@@ -48,7 +48,16 @@
 
 ## 🚀 Installation
 
-### Quick Install
+### From GNOME Extensions Website (Recommended)
+
+Install directly from [extensions.gnome.org](https://extensions.gnome.org/extension/8710/uptime-kuma-indicator/):
+
+1. Visit the [extension page](https://extensions.gnome.org/extension/8710/uptime-kuma-indicator/)
+2. Click the **ON/OFF** toggle to install
+3. The extension will be automatically downloaded and enabled
+4. Configure via the preferences dialog (click the extension icon → settings gear)
+
+### Quick Install from Source
 
 From the project root directory:
 
