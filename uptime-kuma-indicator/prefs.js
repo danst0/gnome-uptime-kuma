@@ -104,9 +104,9 @@ class PreferencesBuilder {
     }
 
     _buildServiceSelectionGroup(page) {
-        const group = new Adw.PreferencesGroup({ 
+        this._serviceGroup = new Adw.PreferencesGroup({ 
             title: _('Service Selection'), 
-            description: _('Select up to 4 specific services to monitor. Leave empty to monitor all services.') 
+            description: _('Select up to 10 specific services to monitor. Leave empty to monitor all services.') 
         });
 
         // Fetch services button
@@ -123,40 +123,161 @@ class PreferencesBuilder {
         fetchButton.connect('clicked', () => this._fetchServices(fetchButton));
         fetchRow.add_suffix(fetchButton);
         fetchRow.activatable_widget = fetchButton;
-        group.add(fetchRow);
+        this._serviceGroup.add(fetchRow);
 
-        // Service dropdowns
+        // Build service rows from saved selection
+        this._rebuildServiceRows();
+
+        // Add button for adding new services
+        const addRow = new Adw.ActionRow({ 
+            title: _('Add Service'),
+            subtitle: _('Add another service to monitor')
+        });
+        const addButton = new Gtk.Button({ 
+            icon_name: 'list-add-symbolic',
+            valign: Gtk.Align.CENTER,
+            halign: Gtk.Align.END,
+            tooltip_text: _('Add service')
+        });
+        addButton.connect('clicked', () => this._addServiceRow());
+        addRow.add_suffix(addButton);
+        addRow.activatable_widget = addButton;
+        this._addServiceRow = addRow;
+        this._serviceGroup.add(addRow);
+
+        page.add(this._serviceGroup);
+    }
+
+    _rebuildServiceRows() {
+        // Remove all existing service rows (keep fetch button and add button)
+        this._serviceDropdowns = [];
+        this._serviceRows = [];
+        
         const selectedServices = this._settings.get_strv('selected-services');
-        for (let i = 0; i < 4; i++) {
-            const serviceRow = new Adw.ActionRow({ 
-                title: `${_('Service')} ${i + 1}`,
-                subtitle: _('Select a service to monitor')
+        
+        // If no services selected, start with one empty row
+        if (selectedServices.length === 0) {
+            this._createServiceRow(null, 0);
+        } else {
+            // Create a row for each selected service
+            selectedServices.forEach((serviceId, index) => {
+                this._createServiceRow(serviceId, index);
             });
-            
-            const dropdown = new Gtk.DropDown({
-                valign: Gtk.Align.CENTER,
-                model: new Gtk.StringList()
-            });
-            
-            // Add "None" option
-            dropdown.model.append(_('(None)'));
-            dropdown.selected = 0;
-            
-            // If there's a saved selection, we'll restore it after fetching
-            if (selectedServices[i]) {
-                dropdown.model.append(selectedServices[i]);
-                dropdown.selected = 1;
-            }
-            
-            dropdown.connect('notify::selected', () => this._onServiceSelected());
-            
-            this._serviceDropdowns.push(dropdown);
-            serviceRow.add_suffix(dropdown);
-            serviceRow.activatable_widget = dropdown;
-            group.add(serviceRow);
         }
+        
+        this._updateAddButtonVisibility();
+    }
 
-        page.add(group);
+    _createServiceRow(serviceId, index) {
+        const serviceRow = new Adw.ActionRow({ 
+            title: `${_('Service')} ${index + 1}`,
+            subtitle: _('Select a service to monitor')
+        });
+        
+        const dropdown = new Gtk.DropDown({
+            valign: Gtk.Align.CENTER,
+            model: new Gtk.StringList()
+        });
+        
+        // Add "None" option
+        dropdown.model.append(_('(None)'));
+        dropdown.selected = 0;
+        
+        // If there's a saved selection or available services, populate
+        if (serviceId && this._availableServices.length > 0) {
+            const service = this._availableServices.find(s => s.id === serviceId);
+            if (service) {
+                // Rebuild full list
+                for (const svc of this._availableServices) {
+                    dropdown.model.append(`${svc.name} (ID: ${svc.id})`);
+                }
+                const idx = this._availableServices.findIndex(s => s.id === serviceId);
+                if (idx !== -1) {
+                    dropdown.selected = idx + 1;
+                }
+            }
+        } else if (this._availableServices.length > 0) {
+            // Populate with available services
+            for (const svc of this._availableServices) {
+                dropdown.model.append(`${svc.name} (ID: ${svc.id})`);
+            }
+        }
+        
+        dropdown.connect('notify::selected', () => this._onServiceSelected());
+        
+        // Delete button
+        const deleteButton = new Gtk.Button({ 
+            icon_name: 'user-trash-symbolic',
+            valign: Gtk.Align.CENTER,
+            tooltip_text: _('Remove service'),
+            css_classes: ['flat', 'circular']
+        });
+        deleteButton.connect('clicked', () => this._removeServiceRow(serviceRow));
+        
+        serviceRow.add_suffix(dropdown);
+        serviceRow.add_suffix(deleteButton);
+        serviceRow.activatable_widget = dropdown;
+        
+        this._serviceDropdowns.push(dropdown);
+        this._serviceRows.push(serviceRow);
+        
+        // Insert before the add button row
+        const addRowIndex = this._findRowIndex(this._addServiceRow);
+        if (addRowIndex > 0) {
+            this._serviceGroup.remove(this._addServiceRow);
+            this._serviceGroup.add(serviceRow);
+            this._serviceGroup.add(this._addServiceRow);
+        } else {
+            this._serviceGroup.add(serviceRow);
+        }
+        
+        return serviceRow;
+    }
+
+    _findRowIndex(row) {
+        // Helper to find row position in group
+        let index = 0;
+        let child = this._serviceGroup.get_first_child();
+        while (child) {
+            if (child === row) return index;
+            index++;
+            child = child.get_next_sibling();
+        }
+        return -1;
+    }
+
+    _addServiceRow() {
+        const currentCount = this._serviceDropdowns.length;
+        if (currentCount >= 10) {
+            this._showError(_('Maximum of 10 services reached'));
+            return;
+        }
+        
+        this._createServiceRow(null, currentCount);
+        this._updateAddButtonVisibility();
+        this._onServiceSelected();
+    }
+
+    _removeServiceRow(row) {
+        const index = this._serviceRows.indexOf(row);
+        if (index === -1) return;
+        
+        this._serviceRows.splice(index, 1);
+        this._serviceDropdowns.splice(index, 1);
+        this._serviceGroup.remove(row);
+        
+        // Renumber remaining services
+        this._serviceRows.forEach((r, i) => {
+            r.title = `${_('Service')} ${i + 1}`;
+        });
+        
+        this._updateAddButtonVisibility();
+        this._onServiceSelected();
+    }
+
+    _updateAddButtonVisibility() {
+        const currentCount = this._serviceDropdowns.length;
+        this._addServiceRow.set_visible(currentCount < 10);
     }
 
     async _fetchServices(button) {
@@ -362,6 +483,15 @@ class PreferencesBuilder {
         for (let i = 0; i < this._serviceDropdowns.length; i++) {
             const dropdown = this._serviceDropdowns[i];
             const model = dropdown.model;
+            const currentSelection = dropdown.selected;
+            let selectedServiceId = null;
+            
+            // Get currently selected service ID before clearing
+            if (currentSelection > 0 && currentSelection <= this._availableServices.length) {
+                selectedServiceId = this._availableServices[currentSelection - 1].id;
+            } else if (selectedServices[i]) {
+                selectedServiceId = selectedServices[i];
+            }
             
             // Clear existing items except "None"
             while (model.get_n_items() > 1) {
@@ -374,8 +504,8 @@ class PreferencesBuilder {
             }
             
             // Restore previous selection if it still exists
-            if (selectedServices[i]) {
-                const index = this._availableServices.findIndex(s => s.id === selectedServices[i]);
+            if (selectedServiceId) {
+                const index = this._availableServices.findIndex(s => s.id === selectedServiceId);
                 if (index !== -1) {
                     dropdown.selected = index + 1; // +1 because of "None" option
                 } else {
