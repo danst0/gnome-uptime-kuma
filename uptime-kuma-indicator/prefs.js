@@ -626,11 +626,48 @@ class PreferencesBuilder {
 
     _buildAboutGroup(page) {
         const group = new Adw.PreferencesGroup({ title: _('About') });
-        const infoRow = new Adw.ActionRow({ title: _('Version'), subtitle: String(this._metadata?.version ?? '1') });
-        infoRow.set_sensitive(false);
-        group.add(infoRow);
+        
+        // Version
+        const version = this._metadata['version-name'] || this._metadata.version || '1.0';
+        const versionRow = new Adw.ActionRow({ 
+            title: _('Version'), 
+            subtitle: version 
+        });
+        versionRow.set_sensitive(false);
+        group.add(versionRow);
+        
+        // Author
+        const authorRow = new Adw.ActionRow({ 
+            title: _('Author'), 
+            subtitle: 'Daniel Dumke' 
+        });
+        authorRow.set_sensitive(false);
+        group.add(authorRow);
+        
+        // GitHub
+        const githubRow = new Adw.ActionRow({ 
+            title: _('GitHub'), 
+            subtitle: this._metadata.url || 'https://github.com/danst0/gnome-uptime-kuma',
+            activatable: true
+        });
+        const linkButton = new Gtk.Button({ 
+            icon_name: 'adw-external-link-symbolic',
+            valign: Gtk.Align.CENTER,
+            tooltip_text: _('Open on GitHub')
+        });
+        linkButton.connect('clicked', () => {
+            const url = this._metadata.url || 'https://github.com/danst0/gnome-uptime-kuma';
+            Gtk.show_uri(this._window, url, null);
+        });
+        githubRow.add_suffix(linkButton);
+        githubRow.activatable_widget = linkButton;
+        group.add(githubRow);
 
-        const docsRow = new Adw.ActionRow({ title: _('Need help?'), subtitle: _('Check the README for configuration examples.') });
+        // Documentation
+        const docsRow = new Adw.ActionRow({ 
+            title: _('Documentation'), 
+            subtitle: _('Check the README for configuration examples.') 
+        });
         docsRow.set_sensitive(false);
         group.add(docsRow);
 
