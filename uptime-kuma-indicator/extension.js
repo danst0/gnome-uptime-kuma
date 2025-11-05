@@ -379,7 +379,6 @@ class KumaIndicator extends PanelMenu.Button {
             'api-key',
             'refresh-seconds',
             'show-latency',
-            'max-items',
             'appearance',
             'log-level',
             'demo-mode',
@@ -407,7 +406,7 @@ class KumaIndicator extends PanelMenu.Button {
                     this._refresh();
                 }
 
-                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'max-items', 'show-latency', 'selected-services', 'enable-notifications', 'notify-on-recovery'].includes(key))
+                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'show-latency', 'selected-services', 'enable-notifications', 'notify-on-recovery'].includes(key))
                     this._refresh();
             });
             this._settingsConnections.push(id);
@@ -424,7 +423,6 @@ class KumaIndicator extends PanelMenu.Button {
     this._config.metricsEndpoint = this._settings.get_string('metrics-endpoint').trim();
         this._config.refreshSeconds = Math.max(10, this._settings.get_int('refresh-seconds'));
         this._config.showLatency = this._settings.get_boolean('show-latency');
-        this._config.maxItems = Math.max(1, this._settings.get_int('max-items'));
         this._config.appearance = this._settings.get_string('appearance') || 'normal';
         this._config.logLevel = this._settings.get_string('log-level') || 'info';
         this._config.demoMode = this._settings.get_boolean('demo-mode');
@@ -529,7 +527,6 @@ class KumaIndicator extends PanelMenu.Button {
                 this._log('debug', `Filtered to ${monitors.length} selected services`);
             }
 
-            monitors = monitors.slice(0, this._config.maxItems);
             if (this._config.showSparkline)
                 await this._populateMonitorHistory(monitors, payload);
             this._updateMonitorList(monitors);

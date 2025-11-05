@@ -561,10 +561,6 @@ class PreferencesBuilder {
         refreshRow.connect('notify::value', row => this._settings.set_int('refresh-seconds', Math.max(10, Math.round(row.value))));
         group.add(refreshRow);
 
-        const maxItemsRow = new Adw.SpinRow({ title: _('Maximum monitors to display'), adjustment: new Gtk.Adjustment({ lower: 1, upper: 100, step_increment: 1, page_increment: 5, value: this._settings.get_int('max-items') }) });
-        maxItemsRow.connect('notify::value', row => this._settings.set_int('max-items', Math.max(1, Math.round(row.value))));
-        group.add(maxItemsRow);
-
         const latencyRow = new Adw.SwitchRow({ title: _('Show latency'), subtitle: _('Displays ping measurements when available.'), active: this._settings.get_boolean('show-latency') });
         latencyRow.connect('notify::active', row => this._settings.set_boolean('show-latency', row.active));
         group.add(latencyRow);

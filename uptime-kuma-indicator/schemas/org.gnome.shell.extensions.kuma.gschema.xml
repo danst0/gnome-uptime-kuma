@@ -46,11 +46,7 @@
       <summary>Show latency</summary>
       <description>Whether latency values should be shown next to each monitor.</description>
     </key>
-    <key name="max-items" type="i">
-      <default>12</default>
-      <summary>Maximum number of monitors to display</summary>
-      <description>Limits how many monitors are shown in the popup list.</description>
-    </key>
+    <!-- max-items removed - service selection now limited to 10 services -->
     <key name="appearance" type="s">
       <default>'normal'</default>
       <summary>Indicator appearance</summary>
