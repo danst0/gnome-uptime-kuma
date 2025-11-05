@@ -574,11 +574,20 @@ class PreferencesBuilder {
     group.add(sparklineRow);
 
         const notificationsRow = new Adw.SwitchRow({ title: _('Enable notifications'), subtitle: _('Show desktop notifications when a service goes offline.'), active: this._settings.get_boolean('enable-notifications') });
-        notificationsRow.connect('notify::active', row => this._settings.set_boolean('enable-notifications', row.active));
-        group.add(notificationsRow);
-
+        
         const notifyRecoveryRow = new Adw.SwitchRow({ title: _('Notify on recovery'), subtitle: _('Show desktop notifications when a service comes back online.'), active: this._settings.get_boolean('notify-on-recovery') });
         notifyRecoveryRow.connect('notify::active', row => this._settings.set_boolean('notify-on-recovery', row.active));
+        
+        // Set initial sensitivity based on notifications state
+        notifyRecoveryRow.sensitive = this._settings.get_boolean('enable-notifications');
+        
+        notificationsRow.connect('notify::active', row => {
+            this._settings.set_boolean('enable-notifications', row.active);
+            // Enable/disable notify on recovery based on notifications state
+            notifyRecoveryRow.sensitive = row.active;
+        });
+        
+        group.add(notificationsRow);
         group.add(notifyRecoveryRow);
 
         const demoRow = new Adw.SwitchRow({ title: _('Enable demo data'), subtitle: _('Use mock monitors when no base URL is configured.'), active: this._settings.get_boolean('demo-mode') });
