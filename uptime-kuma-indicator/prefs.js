@@ -142,7 +142,7 @@ class PreferencesBuilder {
         addButton.connect('clicked', () => this._addServiceRow());
         addRow.add_suffix(addButton);
         addRow.activatable_widget = addButton;
-        this._addServiceRow = addRow;
+        this._addServiceRowWidget = addRow;
         this._serviceGroup.add(addRow);
 
         page.add(this._serviceGroup);
@@ -222,11 +222,11 @@ class PreferencesBuilder {
         this._serviceRows.push(serviceRow);
         
         // Insert before the add button row
-        const addRowIndex = this._findRowIndex(this._addServiceRow);
+        const addRowIndex = this._findRowIndex(this._addServiceRowWidget);
         if (addRowIndex > 0) {
-            this._serviceGroup.remove(this._addServiceRow);
+            this._serviceGroup.remove(this._addServiceRowWidget);
             this._serviceGroup.add(serviceRow);
-            this._serviceGroup.add(this._addServiceRow);
+            this._serviceGroup.add(this._addServiceRowWidget);
         } else {
             this._serviceGroup.add(serviceRow);
         }
@@ -277,7 +277,7 @@ class PreferencesBuilder {
 
     _updateAddButtonVisibility() {
         const currentCount = this._serviceDropdowns.length;
-        this._addServiceRow.set_visible(currentCount < 10);
+        this._addServiceRowWidget.set_visible(currentCount < 10);
     }
 
     async _fetchServices(button) {
