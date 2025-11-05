@@ -11,6 +11,21 @@
     font-weight: 600;
 }
 
+.kuma-sparkline {
+    min-width: 96px;
+    min-height: 20px;
+    border-radius: 3px;
+}
+
+.kuma-sparkline-summary {
+    margin-right: 6px;
+}
+
+.kuma-sparkline-row {
+    min-width: 96px;
+    min-height: 20px;
+}
+
 .kuma-appearance-compact .kuma-indicator-dot {
     font-size: 12px;
     margin-right: 2px;
@@ -18,6 +33,11 @@
 
 .kuma-appearance-compact .kuma-indicator-summary {
     font-size: 11px;
+}
+
+.kuma-appearance-compact .kuma-sparkline-summary {
+    min-width: 72px;
+    min-height: 18px;
 }
 
 .kuma-indicator-dot.ok,
