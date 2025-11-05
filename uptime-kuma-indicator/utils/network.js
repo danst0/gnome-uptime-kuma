@@ -1,12 +1,13 @@
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup';
-import { normalizeApi, normalizeMetrics, normalizeStatusPage } from './parsers.js';
+import { normalizeApi, normalizeHeartbeatHistory, normalizeMetrics, normalizeStatusPage } from './parsers.js';
 import { _ } from './i18n.js';
 
 const DEFAULT_TIMEOUT_SECONDS = 8;
 const DEFAULT_RETRIES = 3;
 const RETRY_BACKOFF = 1.6;
 const USER_AGENT = 'UptimeKumaIndicator/1.0 (GNOME Shell Extension)';
+const HEARTBEAT_LIMIT = 24;
 
 function bytesToString(bytes) {
     if (!bytes)
@@ -94,8 +95,10 @@ export class MonitorFetcher {
         log('debug', `Fetching status page from ${url}`);
 
         const json = await this._getJson(url, { headers: { Accept: 'application/json' } });
-        const monitors = normalizeStatusPage(json);
-        return { source: 'status-page', monitors };
+        const { monitors, heartbeatMap } = normalizeStatusPage(json, {
+            includeHistory: Boolean(config.showSparkline),
+        });
+        return { source: 'status-page', monitors, heartbeatMap };
     }
 
     async _fetchPrivateApi(config, helpers, log) {
@@ -148,6 +151,65 @@ export class MonitorFetcher {
 
         const monitors = normalizeMetrics(text);
         return { source: 'metrics', monitors };
+    }
+
+    async populateHistory(monitors, config, helpers = {}) {
+        if (!Array.isArray(monitors) || monitors.length === 0)
+            return;
+
+        const rawMode = config.apiMode || 'status-page';
+        const mode = rawMode === 'metrics' ? 'metrics' : (rawMode === 'api-key' ? 'api-key' : 'status-page');
+        const log = helpers.log ?? (() => {});
+
+        const pending = monitors.filter(m => !Array.isArray(m.history) || m.history.length === 0);
+        if (pending.length === 0)
+            return;
+
+        if (mode === 'api-key') {
+            await this._populatePrivateApiHistory(pending, config, helpers, log);
+            return;
+        }
+
+        log('debug', 'Historical data not available for this API mode.');
+    }
+
+    async _populatePrivateApiHistory(monitors, config, helpers, log) {
+        const { baseUrl } = config;
+        if (!baseUrl)
+            return;
+
+        const getApiKey = helpers.getApiKey;
+        const apiKey = getApiKey ? await getApiKey() : null;
+        if (!apiKey) {
+            log('debug', 'Cannot fetch heartbeat history without API token.');
+            return;
+        }
+
+        const endpoint = config.heartbeatEndpoint || 'api/heartbeat';
+        const limit = Math.max(24, config.heartbeatLimit ?? HEARTBEAT_LIMIT);
+        const headers = {
+            Accept: 'application/json',
+            Authorization: apiKey,
+        };
+
+        for (const monitor of monitors) {
+            const rawId = monitor?.id;
+            if (rawId === undefined || rawId === null)
+                continue;
+
+            const monitorId = String(rawId);
+            const url = joinUrl(baseUrl, `${endpoint}/${encodeURIComponent(monitorId)}?limit=${limit}`);
+
+            try {
+                log('debug', `Fetching heartbeat history for monitor ${monitorId}`);
+                const json = await this._getJson(url, { headers });
+                const history = normalizeHeartbeatHistory(json);
+                monitor.history = history;
+            } catch (error) {
+                log('debug', `Failed to fetch heartbeat history for monitor ${monitorId}: ${error.message}`);
+                monitor.history = monitor.history ?? [];
+            }
+        }
     }
 
     async _getJson(url, options = {}) {
