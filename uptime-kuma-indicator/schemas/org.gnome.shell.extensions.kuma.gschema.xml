@@ -76,10 +76,15 @@
       <summary>Selected service IDs to monitor</summary>
       <description>Array of up to 4 service IDs (as strings) to monitor. If empty, all services are monitored.</description>
     </key>
-        <key name="show-text" type="b">
+    <key name="show-text" type="b">
       <default>true</default>
       <summary>Show text in panel</summary>
       <description>Whether to display the status summary text next to the indicator dot in the top bar.</description>
+    </key>
+    <key name="show-sparkline" type="b">
+      <default>false</default>
+      <summary>Show history sparklines</summary>
+      <description>Display a 24-hour status sparkline in the panel indicator and monitor list.</description>
     </key>
     <key name="enable-notifications" type="b">
       <default>true</default>
