@@ -85,8 +85,8 @@ class PreferencesBuilder {
         metricsEndpointRow.connect('notify::text', row => this._settings.set_string('metrics-endpoint', row.text.trim()));
         group.add(metricsEndpointRow);
 
-        // API Token Entry Row
-        const tokenRow = new Adw.EntryRow({ 
+        // API Token Entry Row with visibility toggle
+        const tokenRow = new Adw.PasswordEntryRow({ 
             title: _('API token'),
             text: this._settings.get_string('api-key'),
             show_apply_button: false
