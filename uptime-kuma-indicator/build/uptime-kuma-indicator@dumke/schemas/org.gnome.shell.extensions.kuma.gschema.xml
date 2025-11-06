@@ -9,7 +9,7 @@
     <key name="api-mode" type="s">
       <default>'status-page'</default>
       <summary>Selected API mode</summary>
-      <description>Choose between status-page mode (public JSON) and api-key mode (private API).</description>
+      <description>Choose between status-page mode (public JSON), api-key mode (private API), and metrics mode (Prometheus endpoint).</description>
     </key>
     <key name="status-page-slug" type="s">
       <default>'default'</default>
@@ -31,6 +31,11 @@
       <summary>Private API endpoint</summary>
       <description>Relative endpoint used when API key mode is enabled.</description>
     </key>
+    <key name="metrics-endpoint" type="s">
+      <default>'metrics'</default>
+      <summary>Metrics endpoint path</summary>
+      <description>Relative endpoint that returns Prometheus metrics when metrics mode is enabled.</description>
+    </key>
     <key name="refresh-seconds" type="i">
       <default>60</default>
       <summary>Refresh interval</summary>
@@ -41,11 +46,7 @@
       <summary>Show latency</summary>
       <description>Whether latency values should be shown next to each monitor.</description>
     </key>
-    <key name="max-items" type="i">
-      <default>12</default>
-      <summary>Maximum number of monitors to display</summary>
-      <description>Limits how many monitors are shown in the popup list.</description>
-    </key>
+    <!-- max-items removed - service selection now limited to 10 services -->
     <key name="appearance" type="s">
       <default>'normal'</default>
       <summary>Indicator appearance</summary>
@@ -57,7 +58,7 @@
       <description>Controls which log messages are emitted.</description>
     </key>
     <key name="demo-mode" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Enable demo data</summary>
       <description>Show mock monitors when no base URL is configured.</description>
     </key>
@@ -70,6 +71,26 @@
       <default>[]</default>
       <summary>Selected service IDs to monitor</summary>
       <description>Array of up to 4 service IDs (as strings) to monitor. If empty, all services are monitored.</description>
+    </key>
+    <key name="show-text" type="b">
+      <default>true</default>
+      <summary>Show text in panel</summary>
+      <description>Whether to display the status summary text next to the indicator dot in the top bar.</description>
+    </key>
+    <key name="show-sparkline" type="b">
+      <default>false</default>
+      <summary>Show history sparklines</summary>
+      <description>Display a 24-hour status sparkline in the panel indicator and monitor list.</description>
+    </key>
+    <key name="enable-notifications" type="b">
+      <default>true</default>
+      <summary>Enable notifications</summary>
+      <description>Show desktop notifications when a monitored service goes offline.</description>
+    </key>
+    <key name="notify-on-recovery" type="b">
+      <default>true</default>
+      <summary>Notify on recovery</summary>
+      <description>Show desktop notifications when a service comes back online.</description>
     </key>
   </schema>
 </schemalist>
