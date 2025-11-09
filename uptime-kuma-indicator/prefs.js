@@ -23,6 +23,10 @@ class PreferencesBuilder {
 
         this._availableServices = [];
         this._serviceDropdowns = [];
+        this._autoFetchTimeoutId = 0;
+        this._lastBaseUrl = '';
+        this._lastApiKey = '';
+        this._isFetching = false;
         this._build();
     }
 
@@ -76,7 +80,10 @@ class PreferencesBuilder {
 
         const baseUrlRow = new Adw.EntryRow({ title: _('Base URL'), text: this._settings.get_string('base-url') });
         baseUrlRow.set_show_apply_button(false);
-        baseUrlRow.connect('notify::text', row => this._settings.set_string('base-url', row.text.trim()));
+        baseUrlRow.connect('notify::text', row => {
+            this._settings.set_string('base-url', row.text.trim());
+            this._scheduleAutoFetch();
+        });
         group.add(baseUrlRow);
 
         const metricsEndpointRow = new Adw.EntryRow({ title: _('Metrics endpoint'), text: this._settings.get_string('metrics-endpoint') });
@@ -93,6 +100,7 @@ class PreferencesBuilder {
         });
         tokenRow.connect('notify::text', row => {
             this._settings.set_string('api-key', row.text.trim());
+            this._scheduleAutoFetch();
         });
         
         group.add(tokenRow);
@@ -109,26 +117,10 @@ class PreferencesBuilder {
             description: _('Select up to 10 specific services to monitor. Leave empty to monitor all services.') 
         });
 
-        // Fetch services button
-        const fetchRow = new Adw.ActionRow({ 
-            title: _('Fetch Services'), 
-            subtitle: _('Load available services from your Uptime Kuma instance.') 
-        });
-        const fetchButton = new Gtk.Button({ 
-            label: _('Fetch'),
-            valign: Gtk.Align.CENTER,
-            halign: Gtk.Align.END
-        });
-        fetchButton.add_css_class('suggested-action');
-        fetchButton.connect('clicked', () => this._fetchServices(fetchButton));
-        fetchRow.add_suffix(fetchButton);
-        fetchRow.activatable_widget = fetchButton;
-        this._serviceGroup.add(fetchRow);
+        // Auto-fetch on initial load
+        this._initialAutoFetch();
 
-        // Build service rows from saved selection
-        this._rebuildServiceRows();
-
-        // Add button for adding new services
+        // Add button for adding new services (create before rebuilding rows)
         const addRow = new Adw.ActionRow({ 
             title: _('Add Service'),
             subtitle: _('Add another service to monitor')
@@ -144,6 +136,9 @@ class PreferencesBuilder {
         addRow.activatable_widget = addButton;
         this._addServiceRowWidget = addRow;
         this._serviceGroup.add(addRow);
+
+        // Build service rows from saved selection
+        this._rebuildServiceRows();
 
         page.add(this._serviceGroup);
     }
@@ -183,24 +178,23 @@ class PreferencesBuilder {
         dropdown.model.append(_('(None)'));
         dropdown.selected = 0;
         
-        // If there's a saved selection or available services, populate
-        if (serviceId && this._availableServices.length > 0) {
-            const service = this._availableServices.find(s => s.id === serviceId);
-            if (service) {
-                // Rebuild full list
-                for (const svc of this._availableServices) {
-                    dropdown.model.append(`${svc.name} (ID: ${svc.id})`);
-                }
+        // Populate dropdown with available services
+        if (this._availableServices.length > 0) {
+            for (const svc of this._availableServices) {
+                dropdown.model.append(`${svc.name} (ID: ${svc.id})`);
+            }
+            
+            // Select the saved service if it exists in available services
+            if (serviceId) {
                 const idx = this._availableServices.findIndex(s => s.id === serviceId);
                 if (idx !== -1) {
                     dropdown.selected = idx + 1;
                 }
             }
-        } else if (this._availableServices.length > 0) {
-            // Populate with available services
-            for (const svc of this._availableServices) {
-                dropdown.model.append(`${svc.name} (ID: ${svc.id})`);
-            }
+        } else if (serviceId) {
+            // If no services fetched yet, but we have a saved selection, show it as a placeholder
+            dropdown.model.append(`${serviceId} (${_('not loaded yet')})`);
+            dropdown.selected = 1;
         }
         
         dropdown.connect('notify::selected', () => this._onServiceSelected());
@@ -276,14 +270,17 @@ class PreferencesBuilder {
     }
 
     _updateAddButtonVisibility() {
+        if (!this._addServiceRowWidget) return;
         const currentCount = this._serviceDropdowns.length;
         this._addServiceRowWidget.set_visible(currentCount < 10);
     }
 
-    async _fetchServices(button) {
-        // Disable button during fetch
-        button.sensitive = false;
-        button.label = _('Fetching...');
+    async _fetchServices() {
+        // Prevent multiple simultaneous fetches
+        if (this._isFetching) {
+            return;
+        }
+        this._isFetching = true;
 
         try {
             const baseUrl = this._settings.get_string('base-url');
@@ -330,8 +327,7 @@ class PreferencesBuilder {
             this._showError(`${_('Failed to fetch services')}: ${error.message}`);
             console.error('Service fetch error:', error);
         } finally {
-            button.sensitive = true;
-            button.label = _('Fetch');
+            this._isFetching = false;
         }
     }
 
@@ -529,6 +525,46 @@ class PreferencesBuilder {
         }
         
         this._settings.set_strv('selected-services', selectedServices);
+    }
+
+    _initialAutoFetch() {
+        // Auto-fetch on load if we have the required configuration
+        const baseUrl = this._settings.get_string('base-url');
+        const apiKey = this._settings.get_string('api-key');
+        
+        if (baseUrl && apiKey) {
+            this._lastBaseUrl = baseUrl;
+            this._lastApiKey = apiKey;
+            // Fetch immediately on load
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+                this._fetchServices();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    _scheduleAutoFetch() {
+        // Cancel any pending auto-fetch
+        if (this._autoFetchTimeoutId) {
+            GLib.source_remove(this._autoFetchTimeoutId);
+            this._autoFetchTimeoutId = 0;
+        }
+
+        const baseUrl = this._settings.get_string('base-url');
+        const apiKey = this._settings.get_string('api-key');
+
+        // Only auto-fetch if URL or token actually changed
+        if ((baseUrl !== this._lastBaseUrl || apiKey !== this._lastApiKey) && baseUrl && apiKey) {
+            this._lastBaseUrl = baseUrl;
+            this._lastApiKey = apiKey;
+
+            // Schedule fetch after 2 seconds of inactivity
+            this._autoFetchTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+                this._fetchServices();
+                this._autoFetchTimeoutId = 0;
+                return GLib.SOURCE_REMOVE;
+            });
+        }
     }
 
     _showError(message) {
