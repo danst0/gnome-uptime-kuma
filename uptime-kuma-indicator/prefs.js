@@ -479,15 +479,10 @@ class PreferencesBuilder {
         for (let i = 0; i < this._serviceDropdowns.length; i++) {
             const dropdown = this._serviceDropdowns[i];
             const model = dropdown.model;
-            const currentSelection = dropdown.selected;
-            let selectedServiceId = null;
             
-            // Get currently selected service ID before clearing
-            if (currentSelection > 0 && currentSelection <= this._availableServices.length) {
-                selectedServiceId = this._availableServices[currentSelection - 1].id;
-            } else if (selectedServices[i]) {
-                selectedServiceId = selectedServices[i];
-            }
+            // Get the service ID that should be selected for this dropdown
+            // Use the saved settings as the source of truth
+            const selectedServiceId = selectedServices[i] || null;
             
             // Clear existing items except "None"
             while (model.get_n_items() > 1) {
