@@ -171,7 +171,8 @@ class PreferencesBuilder {
         
         const dropdown = new Gtk.DropDown({
             valign: Gtk.Align.CENTER,
-            model: new Gtk.StringList()
+            model: new Gtk.StringList(),
+            enable_search: true
         });
         
         // Store the service ID that should be selected
