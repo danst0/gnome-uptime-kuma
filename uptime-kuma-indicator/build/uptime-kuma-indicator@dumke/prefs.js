@@ -1,9 +1,10 @@
-import Gtk from 'gi://Gtk?version=4.0';
-import Adw from 'gi://Adw?version=1';
+import Gtk from 'gi://Gtk';
+import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
-import Soup from 'gi://Soup?version=3.0';
+import Soup from 'gi://Soup';
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { _ } from './utils/i18n.js';
+import { normalizeMetrics } from './utils/parsers.js';
 
 export default class UptimeKumaPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -11,12 +12,6 @@ export default class UptimeKumaPreferences extends ExtensionPreferences {
         const builder = new PreferencesBuilder(settings, window, this.metadata);
         if (!Adw && builder.widget)
             window.add(builder.widget);
-    }
-
-    getPreferencesWidget() {
-        const settings = this.getSettings();
-        const builder = new PreferencesBuilder(settings, null, this.metadata);
-        return builder.widget;
     }
 }
 
@@ -26,9 +21,12 @@ class PreferencesBuilder {
         this._window = window;
         this._metadata = metadata;
 
-        this._apiModeWidgets = new Map();
         this._availableServices = [];
         this._serviceDropdowns = [];
+        this._autoFetchTimeoutId = 0;
+        this._lastBaseUrl = '';
+        this._lastApiKey = '';
+        this._isFetching = false;
         this._build();
     }
 
@@ -70,6 +68,7 @@ class PreferencesBuilder {
             this._buildEntry(_('Status page endpoint template'), 'status-page-endpoint'),
             this._buildEntry(_('Status page JSON URL'), 'status-page-json-url'),
             this._buildEntry(_('API endpoint'), 'api-endpoint'),
+            this._buildEntry(_('Metrics endpoint'), 'metrics-endpoint'),
         ];
         entries.forEach(widget => vbox.append(widget));
 
@@ -77,134 +76,214 @@ class PreferencesBuilder {
     }
 
     _buildConnectionGroup(page) {
-        const group = new Adw.PreferencesGroup({ title: _('Connection'), description: _('Configure how to contact your Uptime Kuma instance.') });
+        const group = new Adw.PreferencesGroup({ title: _('Connection'), description: _('Configure how to contact your Uptime Kuma Prometheus metrics endpoint.') });
 
         const baseUrlRow = new Adw.EntryRow({ title: _('Base URL'), text: this._settings.get_string('base-url') });
         baseUrlRow.set_show_apply_button(false);
-        baseUrlRow.connect('notify::text', row => this._settings.set_string('base-url', row.text.trim()));
+        baseUrlRow.connect('notify::text', row => {
+            this._settings.set_string('base-url', row.text.trim());
+            this._scheduleAutoFetch();
+        });
         group.add(baseUrlRow);
 
-        const modeRow = new Adw.ActionRow({ title: _('API Mode'), subtitle: _('Choose between public status page JSON or private API with token.') });
-        const modeSelector = Gtk.DropDown.new_from_strings([
-            _('Status page JSON (public)'),
-            _('Private API (token)'),
-        ]);
-        modeSelector.selected = this._settings.get_string('api-mode') === 'api-key' ? 1 : 0;
-        modeSelector.connect('notify::selected', widget => {
-            const value = widget.selected === 1 ? 'api-key' : 'status-page';
-            this._settings.set_string('api-mode', value);
-            this._updateVisibility(value);
-        });
-        modeRow.add_suffix(modeSelector);
-        modeRow.activatable_widget = modeSelector;
-        group.add(modeRow);
-        this._apiModeWidgets.set('mode', modeSelector);
+        const metricsEndpointRow = new Adw.EntryRow({ title: _('Metrics endpoint'), text: this._settings.get_string('metrics-endpoint') });
+        metricsEndpointRow.set_show_apply_button(false);
+        metricsEndpointRow.subtitle = _('Relative path, default: metrics');
+        metricsEndpointRow.connect('notify::text', row => this._settings.set_string('metrics-endpoint', row.text.trim()));
+        group.add(metricsEndpointRow);
 
-        const slugRow = new Adw.EntryRow({ title: _('Status page slug'), text: this._settings.get_string('status-page-slug') });
-        slugRow.set_show_apply_button(false);
-        slugRow.connect('notify::text', row => this._settings.set_string('status-page-slug', row.text.trim()));
-        group.add(slugRow);
-        this._apiModeWidgets.set('status', slugRow);
-
-    const endpointRow = new Adw.EntryRow({ title: _('Status page endpoint template'), text: this._settings.get_string('status-page-endpoint') });
-    endpointRow.set_show_apply_button(false);
-    endpointRow.subtitle = _('Use {{slug}} as placeholder. Default: status/{{slug}}/status.json');
-        endpointRow.connect('notify::text', row => this._settings.set_string('status-page-endpoint', row.text.trim()));
-        group.add(endpointRow);
-        this._apiModeWidgets.set('status-endpoint', endpointRow);
-
-    const jsonRow = new Adw.EntryRow({ title: _('Status page JSON URL (optional)'), text: this._settings.get_string('status-page-json-url') });
-    jsonRow.set_show_apply_button(false);
-    jsonRow.subtitle = _('Override endpoint template with an explicit URL.');
-        jsonRow.connect('notify::text', row => this._settings.set_string('status-page-json-url', row.text.trim()));
-        group.add(jsonRow);
-        this._apiModeWidgets.set('status-json', jsonRow);
-
-    const apiEndpointRow = new Adw.EntryRow({ title: _('API endpoint'), text: this._settings.get_string('api-endpoint') });
-    apiEndpointRow.set_show_apply_button(false);
-    apiEndpointRow.subtitle = _('Relative path, default: api/monitor');
-        apiEndpointRow.connect('notify::text', row => this._settings.set_string('api-endpoint', row.text.trim()));
-        group.add(apiEndpointRow);
-        this._apiModeWidgets.set('api-endpoint', apiEndpointRow);
-
-        // API Token Entry Row
-        const tokenRow = new Adw.EntryRow({ 
+        // API Token Entry Row with visibility toggle
+        const tokenRow = new Adw.PasswordEntryRow({ 
             title: _('API token'),
             text: this._settings.get_string('api-key'),
             show_apply_button: false
         });
         tokenRow.connect('notify::text', row => {
             this._settings.set_string('api-key', row.text.trim());
+            this._scheduleAutoFetch();
         });
         
         group.add(tokenRow);
-        this._apiModeWidgets.set('api-token', tokenRow);
 
         page.add(group);
 
-        this._updateVisibility(this._settings.get_string('api-mode'));
+        // Ensure metrics mode is set
+        this._settings.set_string('api-mode', 'metrics');
     }
 
     _buildServiceSelectionGroup(page) {
-        const group = new Adw.PreferencesGroup({ 
+        this._serviceGroup = new Adw.PreferencesGroup({ 
             title: _('Service Selection'), 
-            description: _('Select up to 4 specific services to monitor. Leave empty to monitor all services.') 
+            description: _('Select up to 10 specific services to monitor. Leave empty to monitor all services.') 
         });
 
-        // Fetch services button
-        const fetchRow = new Adw.ActionRow({ 
-            title: _('Fetch Services'), 
-            subtitle: _('Load available services from your Uptime Kuma instance.') 
+        // Auto-fetch on initial load
+        this._initialAutoFetch();
+
+        // Add button for adding new services (create before rebuilding rows)
+        const addRow = new Adw.ActionRow({ 
+            title: _('Add Service'),
+            subtitle: _('Add another service to monitor')
         });
-        const fetchButton = new Gtk.Button({ 
-            label: _('Fetch'),
+        const addButton = new Gtk.Button({ 
+            icon_name: 'list-add-symbolic',
             valign: Gtk.Align.CENTER,
-            halign: Gtk.Align.END
+            halign: Gtk.Align.END,
+            tooltip_text: _('Add service')
         });
-        fetchButton.add_css_class('suggested-action');
-        fetchButton.connect('clicked', () => this._fetchServices(fetchButton));
-        fetchRow.add_suffix(fetchButton);
-        fetchRow.activatable_widget = fetchButton;
-        group.add(fetchRow);
+        addButton.connect('clicked', () => this._addServiceRow());
+        addRow.add_suffix(addButton);
+        addRow.activatable_widget = addButton;
+        this._addServiceRowWidget = addRow;
+        this._serviceGroup.add(addRow);
 
-        // Service dropdowns
-        const selectedServices = this._settings.get_strv('selected-services');
-        for (let i = 0; i < 4; i++) {
-            const serviceRow = new Adw.ActionRow({ 
-                title: `${_('Service')} ${i + 1}`,
-                subtitle: _('Select a service to monitor')
-            });
-            
-            const dropdown = new Gtk.DropDown({
-                valign: Gtk.Align.CENTER,
-                model: new Gtk.StringList()
-            });
-            
-            // Add "None" option
-            dropdown.model.append(_('(None)'));
-            dropdown.selected = 0;
-            
-            // If there's a saved selection, we'll restore it after fetching
-            if (selectedServices[i]) {
-                dropdown.model.append(selectedServices[i]);
-                dropdown.selected = 1;
-            }
-            
-            dropdown.connect('notify::selected', () => this._onServiceSelected());
-            
-            this._serviceDropdowns.push(dropdown);
-            serviceRow.add_suffix(dropdown);
-            serviceRow.activatable_widget = dropdown;
-            group.add(serviceRow);
-        }
+        // Build service rows from saved selection
+        this._rebuildServiceRows();
 
-        page.add(group);
+        page.add(this._serviceGroup);
     }
 
-    async _fetchServices(button) {
-        // Disable button during fetch
-        button.sensitive = false;
-        button.label = _('Fetching...');
+    _rebuildServiceRows() {
+        // Remove all existing service rows (keep fetch button and add button)
+        this._serviceDropdowns = [];
+        this._serviceRows = [];
+        
+        const selectedServices = this._settings.get_strv('selected-services');
+        
+        // If no services selected, start with one empty row
+        if (selectedServices.length === 0) {
+            this._createServiceRow(null, 0);
+        } else {
+            // Create a row for each selected service with the correct service ID
+            selectedServices.forEach((serviceId, index) => {
+                this._createServiceRow(serviceId, index);
+            });
+        }
+        
+        this._updateAddButtonVisibility();
+    }
+
+    _createServiceRow(serviceId, index) {
+        const serviceRow = new Adw.ActionRow({ 
+            title: `${_('Service')} ${index + 1}`,
+            subtitle: _('Select a service to monitor')
+        });
+        
+        const dropdown = new Gtk.DropDown({
+            valign: Gtk.Align.CENTER,
+            model: new Gtk.StringList()
+        });
+        
+        // Store the service ID that should be selected
+        dropdown._targetServiceId = serviceId;
+        
+        // Add "None" option
+        dropdown.model.append(_('(None)'));
+        dropdown.selected = 0;
+        
+        // Populate dropdown with available services
+        if (this._availableServices.length > 0) {
+            for (const svc of this._availableServices) {
+                dropdown.model.append(`${svc.name} (ID: ${svc.id})`);
+            }
+            
+            // Select the saved service if it exists in available services
+            if (serviceId) {
+                const idx = this._availableServices.findIndex(s => s.id === serviceId);
+                if (idx !== -1) {
+                    dropdown.selected = idx + 1;
+                }
+            }
+        } else if (serviceId) {
+            // If no services fetched yet, but we have a saved selection, show it as a placeholder
+            dropdown.model.append(`${serviceId} (${_('not loaded yet')})`);
+            dropdown.selected = 1;
+        }
+        
+        dropdown.connect('notify::selected', () => this._onServiceSelected());
+        
+        // Delete button
+        const deleteButton = new Gtk.Button({ 
+            icon_name: 'user-trash-symbolic',
+            valign: Gtk.Align.CENTER,
+            tooltip_text: _('Remove service'),
+            css_classes: ['flat', 'circular']
+        });
+        deleteButton.connect('clicked', () => this._removeServiceRow(serviceRow));
+        
+        serviceRow.add_suffix(dropdown);
+        serviceRow.add_suffix(deleteButton);
+        serviceRow.activatable_widget = dropdown;
+        
+        this._serviceDropdowns.push(dropdown);
+        this._serviceRows.push(serviceRow);
+        
+        // Insert before the add button row
+        const addRowIndex = this._findRowIndex(this._addServiceRowWidget);
+        if (addRowIndex > 0) {
+            this._serviceGroup.remove(this._addServiceRowWidget);
+            this._serviceGroup.add(serviceRow);
+            this._serviceGroup.add(this._addServiceRowWidget);
+        } else {
+            this._serviceGroup.add(serviceRow);
+        }
+        
+        return serviceRow;
+    }
+
+    _findRowIndex(row) {
+        // Helper to find row position in group
+        let index = 0;
+        let child = this._serviceGroup.get_first_child();
+        while (child) {
+            if (child === row) return index;
+            index++;
+            child = child.get_next_sibling();
+        }
+        return -1;
+    }
+
+    _addServiceRow() {
+        const currentCount = this._serviceDropdowns.length;
+        if (currentCount >= 10) {
+            this._showError(_('Maximum of 10 services reached'));
+            return;
+        }
+        
+        this._createServiceRow(null, currentCount);
+        this._updateAddButtonVisibility();
+        this._onServiceSelected();
+    }
+
+    _removeServiceRow(row) {
+        const index = this._serviceRows.indexOf(row);
+        if (index === -1) return;
+        
+        this._serviceRows.splice(index, 1);
+        this._serviceDropdowns.splice(index, 1);
+        this._serviceGroup.remove(row);
+        
+        // Renumber remaining services
+        this._serviceRows.forEach((r, i) => {
+            r.title = `${_('Service')} ${i + 1}`;
+        });
+        
+        this._updateAddButtonVisibility();
+        this._onServiceSelected();
+    }
+
+    _updateAddButtonVisibility() {
+        if (!this._addServiceRowWidget) return;
+        const currentCount = this._serviceDropdowns.length;
+        this._addServiceRowWidget.set_visible(currentCount < 10);
+    }
+
+    async _fetchServices() {
+        // Prevent multiple simultaneous fetches
+        if (this._isFetching) {
+            return;
+        }
+        this._isFetching = true;
 
         try {
             const baseUrl = this._settings.get_string('base-url');
@@ -227,6 +306,15 @@ class PreferencesBuilder {
                 
                 const apiEndpoint = this._settings.get_string('api-endpoint') || 'api/monitor';
                 services = await this._fetchFromPrivateApi(baseUrl, apiEndpoint, apiKey);
+            } else if (apiMode === 'metrics') {
+                const apiKey = this._settings.get_string('api-key');
+                if (!apiKey) {
+                    this._showError(_('Please configure API token first.'));
+                    return;
+                }
+
+                const metricsEndpoint = this._settings.get_string('metrics-endpoint') || 'metrics';
+                services = await this._fetchFromMetrics(baseUrl, metricsEndpoint, apiKey);
             } else {
                 // Fetch from status page
                 const statusPageSlug = this._settings.get_string('status-page-slug') || 'default';
@@ -242,8 +330,7 @@ class PreferencesBuilder {
             this._showError(`${_('Failed to fetch services')}: ${error.message}`);
             console.error('Service fetch error:', error);
         } finally {
-            button.sensitive = true;
-            button.label = _('Fetch');
+            this._isFetching = false;
         }
     }
 
@@ -300,6 +387,26 @@ class PreferencesBuilder {
         return services;
     }
 
+    async _fetchFromMetrics(baseUrl, metricsEndpoint, apiKey) {
+        const url = this._joinUrl(baseUrl, metricsEndpoint);
+        const authHeader = this._encodeBasicAuth('', apiKey);
+        const text = await this._getText(url, {
+            'Accept': 'text/plain',
+            'Authorization': authHeader,
+        });
+
+        const monitors = normalizeMetrics(text) ?? [];
+        const unique = new Map();
+
+        for (const monitor of monitors) {
+            if (!monitor || !monitor.id || !monitor.name)
+                continue;
+            unique.set(String(monitor.id), monitor.name);
+        }
+
+        return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
+    }
+
     async _getJson(url, headers = {}) {
         return new Promise((resolve, reject) => {
             const session = new Soup.Session({ timeout: 10 });
@@ -330,6 +437,36 @@ class PreferencesBuilder {
         });
     }
 
+    async _getText(url, headers = {}) {
+        return new Promise((resolve, reject) => {
+            const session = new Soup.Session({ timeout: 10 });
+            const message = Soup.Message.new('GET', url);
+
+            if (!headers.Accept)
+                message.request_headers.replace('Accept', 'text/plain');
+            for (const [key, value] of Object.entries(headers))
+                message.request_headers.replace(key, value);
+
+            session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (sess, result) => {
+                try {
+                    const bytes = session.send_and_read_finish(result);
+                    const status = message.get_status();
+
+                    if (status < 200 || status >= 300) {
+                        reject(new Error(`HTTP ${status}`));
+                        return;
+                    }
+
+                    const data = bytes.get_data();
+                    const text = new TextDecoder().decode(data);
+                    resolve(text);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+
     _joinUrl(base, path) {
         if (!base) return path;
         if (!path) return base;
@@ -340,37 +477,52 @@ class PreferencesBuilder {
     }
 
     _updateServiceDropdowns() {
-        const selectedServices = this._settings.get_strv('selected-services');
+        // Temporarily set flag to prevent _onServiceSelected from saving during update
+        this._isUpdatingDropdowns = true;
         
-        for (let i = 0; i < this._serviceDropdowns.length; i++) {
-            const dropdown = this._serviceDropdowns[i];
-            const model = dropdown.model;
-            
-            // Clear existing items except "None"
-            while (model.get_n_items() > 1) {
-                model.remove(1);
-            }
-            
-            // Add all available services
-            for (const service of this._availableServices) {
-                model.append(`${service.name} (ID: ${service.id})`);
-            }
-            
-            // Restore previous selection if it still exists
-            if (selectedServices[i]) {
-                const index = this._availableServices.findIndex(s => s.id === selectedServices[i]);
-                if (index !== -1) {
-                    dropdown.selected = index + 1; // +1 because of "None" option
+        try {
+            for (let i = 0; i < this._serviceDropdowns.length; i++) {
+                const dropdown = this._serviceDropdowns[i];
+                const model = dropdown.model;
+                
+                // Get the service ID that should be selected for this dropdown
+                // Use the stored target service ID
+                const selectedServiceId = dropdown._targetServiceId || null;
+                
+                // Clear existing items except "None"
+                while (model.get_n_items() > 1) {
+                    model.remove(1);
+                }
+                
+                // Add all available services
+                for (const service of this._availableServices) {
+                    model.append(`${service.name} (ID: ${service.id})`);
+                }
+                
+                // Restore previous selection if it still exists
+                if (selectedServiceId) {
+                    const index = this._availableServices.findIndex(s => s.id === selectedServiceId);
+                    if (index !== -1) {
+                        dropdown.selected = index + 1; // +1 because of "None" option
+                    } else {
+                        dropdown.selected = 0;
+                    }
                 } else {
                     dropdown.selected = 0;
                 }
-            } else {
-                dropdown.selected = 0;
             }
+        } finally {
+            // Re-enable saving
+            this._isUpdatingDropdowns = false;
         }
     }
 
     _onServiceSelected() {
+        // Don't save during dropdown updates
+        if (this._isUpdatingDropdowns) {
+            return;
+        }
+        
         const selectedServices = [];
         
         for (const dropdown of this._serviceDropdowns) {
@@ -378,10 +530,55 @@ class PreferencesBuilder {
             if (selected > 0 && selected <= this._availableServices.length) {
                 const service = this._availableServices[selected - 1];
                 selectedServices.push(service.id);
+                // Update the stored target service ID
+                dropdown._targetServiceId = service.id;
+            } else {
+                // None selected
+                dropdown._targetServiceId = null;
             }
         }
         
         this._settings.set_strv('selected-services', selectedServices);
+    }
+
+    _initialAutoFetch() {
+        // Auto-fetch on load if we have the required configuration
+        const baseUrl = this._settings.get_string('base-url');
+        const apiKey = this._settings.get_string('api-key');
+        
+        if (baseUrl && apiKey) {
+            this._lastBaseUrl = baseUrl;
+            this._lastApiKey = apiKey;
+            // Fetch immediately on load
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+                this._fetchServices();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    _scheduleAutoFetch() {
+        // Cancel any pending auto-fetch
+        if (this._autoFetchTimeoutId) {
+            GLib.source_remove(this._autoFetchTimeoutId);
+            this._autoFetchTimeoutId = 0;
+        }
+
+        const baseUrl = this._settings.get_string('base-url');
+        const apiKey = this._settings.get_string('api-key');
+
+        // Only auto-fetch if URL or token actually changed
+        if ((baseUrl !== this._lastBaseUrl || apiKey !== this._lastApiKey) && baseUrl && apiKey) {
+            this._lastBaseUrl = baseUrl;
+            this._lastApiKey = apiKey;
+
+            // Schedule fetch after 2 seconds of inactivity
+            this._autoFetchTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+                this._fetchServices();
+                this._autoFetchTimeoutId = 0;
+                return GLib.SOURCE_REMOVE;
+            });
+        }
     }
 
     _showError(message) {
@@ -399,6 +596,14 @@ class PreferencesBuilder {
         }
     }
 
+    _encodeBasicAuth(username, password) {
+        const user = username ?? '';
+        const pass = password ?? '';
+        const credentials = `${user}:${pass}`;
+        const encoded = GLib.base64_encode(new TextEncoder().encode(credentials));
+        return `Basic ${encoded}`;
+    }
+
     _buildBehaviourGroup(page) {
         const group = new Adw.PreferencesGroup({ title: _('Behaviour') });
 
@@ -406,13 +611,34 @@ class PreferencesBuilder {
         refreshRow.connect('notify::value', row => this._settings.set_int('refresh-seconds', Math.max(10, Math.round(row.value))));
         group.add(refreshRow);
 
-        const maxItemsRow = new Adw.SpinRow({ title: _('Maximum monitors to display'), adjustment: new Gtk.Adjustment({ lower: 1, upper: 100, step_increment: 1, page_increment: 5, value: this._settings.get_int('max-items') }) });
-        maxItemsRow.connect('notify::value', row => this._settings.set_int('max-items', Math.max(1, Math.round(row.value))));
-        group.add(maxItemsRow);
-
         const latencyRow = new Adw.SwitchRow({ title: _('Show latency'), subtitle: _('Displays ping measurements when available.'), active: this._settings.get_boolean('show-latency') });
         latencyRow.connect('notify::active', row => this._settings.set_boolean('show-latency', row.active));
         group.add(latencyRow);
+
+        const showTextRow = new Adw.SwitchRow({ title: _('Show text in panel'), subtitle: _('Display status summary next to the indicator dot.'), active: this._settings.get_boolean('show-text') });
+        showTextRow.connect('notify::active', row => this._settings.set_boolean('show-text', row.active));
+        group.add(showTextRow);
+
+    const sparklineRow = new Adw.SwitchRow({ title: _('Show history sparkline'), subtitle: _('Display a 24-hour status bar next to each monitor.'), active: this._settings.get_boolean('show-sparkline') });
+    sparklineRow.connect('notify::active', row => this._settings.set_boolean('show-sparkline', row.active));
+    group.add(sparklineRow);
+
+        const notificationsRow = new Adw.SwitchRow({ title: _('Enable notifications'), subtitle: _('Show desktop notifications when a service goes offline.'), active: this._settings.get_boolean('enable-notifications') });
+        
+        const notifyRecoveryRow = new Adw.SwitchRow({ title: _('Notify on recovery'), subtitle: _('Show desktop notifications when a service comes back online.'), active: this._settings.get_boolean('notify-on-recovery') });
+        notifyRecoveryRow.connect('notify::active', row => this._settings.set_boolean('notify-on-recovery', row.active));
+        
+        // Set initial sensitivity based on notifications state
+        notifyRecoveryRow.sensitive = this._settings.get_boolean('enable-notifications');
+        
+        notificationsRow.connect('notify::active', row => {
+            this._settings.set_boolean('enable-notifications', row.active);
+            // Enable/disable notify on recovery based on notifications state
+            notifyRecoveryRow.sensitive = row.active;
+        });
+        
+        group.add(notificationsRow);
+        group.add(notifyRecoveryRow);
 
         const demoRow = new Adw.SwitchRow({ title: _('Enable demo data'), subtitle: _('Use mock monitors when no base URL is configured.'), active: this._settings.get_boolean('demo-mode') });
         demoRow.connect('notify::active', row => this._settings.set_boolean('demo-mode', row.active));
@@ -450,11 +676,48 @@ class PreferencesBuilder {
 
     _buildAboutGroup(page) {
         const group = new Adw.PreferencesGroup({ title: _('About') });
-        const infoRow = new Adw.ActionRow({ title: _('Version'), subtitle: String(this._metadata?.version ?? '1') });
-        infoRow.set_sensitive(false);
-        group.add(infoRow);
+        
+        // Version
+        const version = this._metadata['version-name'] || this._metadata.version || '1.0';
+        const versionRow = new Adw.ActionRow({ 
+            title: _('Version'), 
+            subtitle: version 
+        });
+        versionRow.set_sensitive(false);
+        group.add(versionRow);
+        
+        // Author
+        const authorRow = new Adw.ActionRow({ 
+            title: _('Author'), 
+            subtitle: 'Daniel Dumke' 
+        });
+        authorRow.set_sensitive(false);
+        group.add(authorRow);
+        
+        // GitHub
+        const githubRow = new Adw.ActionRow({ 
+            title: _('GitHub'), 
+            subtitle: this._metadata.url || 'https://github.com/danst0/gnome-uptime-kuma',
+            activatable: true
+        });
+        const linkButton = new Gtk.Button({ 
+            icon_name: 'adw-external-link-symbolic',
+            valign: Gtk.Align.CENTER,
+            tooltip_text: _('Open on GitHub')
+        });
+        linkButton.connect('clicked', () => {
+            const url = this._metadata.url || 'https://github.com/danst0/gnome-uptime-kuma';
+            Gtk.show_uri(this._window, url, null);
+        });
+        githubRow.add_suffix(linkButton);
+        githubRow.activatable_widget = linkButton;
+        group.add(githubRow);
 
-        const docsRow = new Adw.ActionRow({ title: _('Need help?'), subtitle: _('Check the README for configuration examples.') });
+        // Documentation
+        const docsRow = new Adw.ActionRow({ 
+            title: _('Documentation'), 
+            subtitle: _('Check the README for configuration examples.') 
+        });
         docsRow.set_sensitive(false);
         group.add(docsRow);
 
@@ -470,27 +733,7 @@ class PreferencesBuilder {
         return box;
     }
 
-    _updateVisibility(mode) {
-        const currentMode = mode === 'api-key' ? 'api-key' : 'status-page';
-
-        const statusWidgets = [
-            this._apiModeWidgets.get('status'),
-            this._apiModeWidgets.get('status-endpoint'),
-            this._apiModeWidgets.get('status-json'),
-        ];
-        const apiWidgets = [
-            this._apiModeWidgets.get('api-endpoint'),
-            this._apiModeWidgets.get('api-token'),
-        ];
-
-        statusWidgets.forEach(widget => {
-            if (widget)
-                widget.visible = currentMode === 'status-page';
-        });
-
-        apiWidgets.forEach(widget => {
-            if (widget)
-                widget.visible = currentMode === 'api-key';
-        });
+    _updateOpenItemSensitivity() {
+        // Removed - no longer needed
     }
 }

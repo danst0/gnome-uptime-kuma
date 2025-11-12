@@ -154,7 +154,7 @@ class PreferencesBuilder {
         if (selectedServices.length === 0) {
             this._createServiceRow(null, 0);
         } else {
-            // Create a row for each selected service
+            // Create a row for each selected service with the correct service ID
             selectedServices.forEach((serviceId, index) => {
                 this._createServiceRow(serviceId, index);
             });
@@ -173,6 +173,9 @@ class PreferencesBuilder {
             valign: Gtk.Align.CENTER,
             model: new Gtk.StringList()
         });
+        
+        // Store the service ID that should be selected
+        dropdown._targetServiceId = serviceId;
         
         // Add "None" option
         dropdown.model.append(_('(None)'));
@@ -474,41 +477,52 @@ class PreferencesBuilder {
     }
 
     _updateServiceDropdowns() {
-        const selectedServices = this._settings.get_strv('selected-services');
+        // Temporarily set flag to prevent _onServiceSelected from saving during update
+        this._isUpdatingDropdowns = true;
         
-        for (let i = 0; i < this._serviceDropdowns.length; i++) {
-            const dropdown = this._serviceDropdowns[i];
-            const model = dropdown.model;
-            
-            // Get the service ID that should be selected for this dropdown
-            // Use the saved settings as the source of truth
-            const selectedServiceId = selectedServices[i] || null;
-            
-            // Clear existing items except "None"
-            while (model.get_n_items() > 1) {
-                model.remove(1);
-            }
-            
-            // Add all available services
-            for (const service of this._availableServices) {
-                model.append(`${service.name} (ID: ${service.id})`);
-            }
-            
-            // Restore previous selection if it still exists
-            if (selectedServiceId) {
-                const index = this._availableServices.findIndex(s => s.id === selectedServiceId);
-                if (index !== -1) {
-                    dropdown.selected = index + 1; // +1 because of "None" option
+        try {
+            for (let i = 0; i < this._serviceDropdowns.length; i++) {
+                const dropdown = this._serviceDropdowns[i];
+                const model = dropdown.model;
+                
+                // Get the service ID that should be selected for this dropdown
+                // Use the stored target service ID
+                const selectedServiceId = dropdown._targetServiceId || null;
+                
+                // Clear existing items except "None"
+                while (model.get_n_items() > 1) {
+                    model.remove(1);
+                }
+                
+                // Add all available services
+                for (const service of this._availableServices) {
+                    model.append(`${service.name} (ID: ${service.id})`);
+                }
+                
+                // Restore previous selection if it still exists
+                if (selectedServiceId) {
+                    const index = this._availableServices.findIndex(s => s.id === selectedServiceId);
+                    if (index !== -1) {
+                        dropdown.selected = index + 1; // +1 because of "None" option
+                    } else {
+                        dropdown.selected = 0;
+                    }
                 } else {
                     dropdown.selected = 0;
                 }
-            } else {
-                dropdown.selected = 0;
             }
+        } finally {
+            // Re-enable saving
+            this._isUpdatingDropdowns = false;
         }
     }
 
     _onServiceSelected() {
+        // Don't save during dropdown updates
+        if (this._isUpdatingDropdowns) {
+            return;
+        }
+        
         const selectedServices = [];
         
         for (const dropdown of this._serviceDropdowns) {
@@ -516,6 +530,11 @@ class PreferencesBuilder {
             if (selected > 0 && selected <= this._availableServices.length) {
                 const service = this._availableServices[selected - 1];
                 selectedServices.push(service.id);
+                // Update the stored target service ID
+                dropdown._targetServiceId = service.id;
+            } else {
+                // None selected
+                dropdown._targetServiceId = null;
             }
         }
         
