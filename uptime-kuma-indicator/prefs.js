@@ -169,23 +169,26 @@ class PreferencesBuilder {
             subtitle: _('Select a service to monitor')
         });
         
+        const stringList = new Gtk.StringList();
+        
         const dropdown = new Gtk.DropDown({
             valign: Gtk.Align.CENTER,
-            model: new Gtk.StringList(),
-            enable_search: true
+            model: stringList,
+            enable_search: true,
+            search_match_mode: Gtk.StringFilterMatchMode.SUBSTRING
         });
         
         // Store the service ID that should be selected
         dropdown._targetServiceId = serviceId;
         
         // Add "None" option
-        dropdown.model.append(_('(None)'));
+        stringList.append(_('(None)'));
         dropdown.selected = 0;
         
         // Populate dropdown with available services
         if (this._availableServices.length > 0) {
             for (const svc of this._availableServices) {
-                dropdown.model.append(`${svc.name} (ID: ${svc.id})`);
+                stringList.append(`${svc.name} (ID: ${svc.id})`);
             }
             
             // Select the saved service if it exists in available services
@@ -197,7 +200,7 @@ class PreferencesBuilder {
             }
         } else if (serviceId) {
             // If no services fetched yet, but we have a saved selection, show it as a placeholder
-            dropdown.model.append(`${serviceId} (${_('not loaded yet')})`);
+            stringList.append(`${serviceId} (${_('not loaded yet')})`);
             dropdown.selected = 1;
         }
         
