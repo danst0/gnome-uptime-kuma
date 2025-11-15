@@ -1,5 +1,5 @@
 import GLib from 'gi://GLib';
-import Soup from 'gi://Soup';
+import Soup from 'gi://Soup?version=3.0';
 import { normalizeApi, normalizeHeartbeatHistory, normalizeMetrics, normalizeStatusPage } from './parsers.js';
 import { _ } from './i18n.js';
 
@@ -8,7 +8,6 @@ const DEFAULT_RETRIES = 3;
 const RETRY_BACKOFF = 1.6;
 const USER_AGENT = 'UptimeKumaIndicator/1.0 (GNOME Shell Extension)';
 const HEARTBEAT_LIMIT = 24;
-const BADGE_PERCENTAGE_PATTERN = />\s*(\d+(?:[.,]\d+)?)\s*%/;
 
 function bytesToString(bytes) {
     if (!bytes)
@@ -38,22 +37,6 @@ function joinUrl(base, path) {
     return `${cleanedBase}/${cleanedPath}`;
 }
 
-function parseBadgePercentage(svg) {
-    if (typeof svg !== 'string' || svg.length === 0)
-        return null;
-
-    const match = BADGE_PERCENTAGE_PATTERN.exec(svg);
-    if (!match)
-        return null;
-
-    const normalized = match[1].replace(',', '.');
-    const value = Number.parseFloat(normalized);
-    if (!Number.isFinite(value))
-        return null;
-
-    return value;
-}
-
 export class MonitorFetcher {
     constructor({ timeoutSeconds = DEFAULT_TIMEOUT_SECONDS, retries = DEFAULT_RETRIES, backoff = RETRY_BACKOFF } = {}) {
         this._timeoutSeconds = timeoutSeconds;
@@ -66,6 +49,19 @@ export class MonitorFetcher {
             timeout: timeoutSeconds,
         });
         this._session.allow_tls = true;
+    }
+
+    async _sendAndRead(message) {
+        return await new Promise((resolve, reject) => {
+            this._session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (_session, result) => {
+                try {
+                    const bytes = this._session.send_and_read_finish(result);
+                    resolve(bytes);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
     }
 
     destroy() {
@@ -93,29 +89,6 @@ export class MonitorFetcher {
             return this._fetchMetrics(config, helpers, log);
 
         return this._fetchPrivateApi(config, helpers, log);
-    }
-
-    async fetchUptimeBadge(monitorId, config, helpers = {}) {
-        if (monitorId === undefined || monitorId === null)
-            return null;
-
-        const { baseUrl } = config;
-        if (!baseUrl)
-            throw new Error(_('Base URL is missing.'));
-
-        const log = helpers.log ?? (() => {});
-        const encodedId = encodeURIComponent(String(monitorId));
-        const endpoint = `api/badge/${encodedId}/uptime/24h`;
-        const url = joinUrl(baseUrl, endpoint);
-        log('debug', `Fetching uptime badge from ${url}`);
-
-        const svg = await this._request(url, {
-            headers: {
-                Accept: 'image/svg+xml,*/*;q=0.8',
-            },
-        });
-
-        return parseBadgePercentage(svg);
     }
 
     async _fetchStatusPage(config, log) {
@@ -292,7 +265,7 @@ export class MonitorFetcher {
             }
 
             try {
-                const bytes = await this._session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null);
+                const bytes = await this._sendAndRead(message);
                 const status = message.get_status();
 
                 if (status >= 200 && status < 300)

@@ -27,7 +27,11 @@ const LOG_LEVELS = ['error', 'info', 'debug'];
 
 const USEC_PER_SEC = 1_000_000;
 const REFRESH_ON_ENABLE_DELAY_MS = 200;
-const BADGE_CACHE_TTL_MS = 10 * 60 * 1000;
+const UPTIME_HISTORY_CACHE_DIR = GLib.build_filenamev([
+    GLib.get_user_cache_dir() || GLib.get_home_dir() || GLib.get_tmp_dir(),
+    'uptime-kuma-indicator',
+]);
+const UPTIME_HISTORY_FILE = GLib.build_filenamev([UPTIME_HISTORY_CACHE_DIR, 'uptime-history.json']);
 
 function toDateTime(value) {
     if (!value)
@@ -76,7 +80,7 @@ function formatRelative(deltaSeconds) {
 
 const MonitorRow = GObject.registerClass(
 class MonitorRow extends St.BoxLayout {
-    _init(monitor, showLatency, showBadges) {
+    _init(monitor, showLatency, showBadges, showCalculatedUptime, calculatedUptime) {
         super._init({
             style_class: 'kuma-list-row',
             vertical: false,
@@ -105,6 +109,7 @@ class MonitorRow extends St.BoxLayout {
         });
         if (this._name.clutter_text)
             this._name.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+
         this._latency = new St.Label({
             text: '',
             style_class: 'kuma-monitor-latency',
@@ -131,14 +136,14 @@ class MonitorRow extends St.BoxLayout {
         this.add_child(this._latency);
         this.add_child(this._uptime);
         this.add_child(this._lastCheck);
-        this.update(monitor, showLatency, showBadges);
+        this.update(monitor, showLatency, showBadges, showCalculatedUptime, calculatedUptime);
     }
 
     get monitorId() {
         return this._monitorId;
     }
 
-    update(monitor, showLatency, showBadges) {
+    update(monitor, showLatency, showBadges, showCalculatedUptime, calculatedUptime) {
         this._monitorId = monitor.id;
         this._name.text = monitor.name ?? '—';
         this._setStatusClass(monitor.status);
@@ -153,7 +158,13 @@ class MonitorRow extends St.BoxLayout {
             this._latency.visible = false;
         }
 
-        if (showBadges && typeof monitor.uptime24h === 'number') {
+        // Show calculated uptime from history if enabled
+        if (showCalculatedUptime && calculatedUptime !== null) {
+            const rounded = calculatedUptime >= 100 ? calculatedUptime.toFixed(0) : calculatedUptime.toFixed(2);
+            this._uptime.text = `24h ${rounded}%`;
+            this._uptime.visible = true;
+        } else if (showBadges && typeof monitor.uptime24h === 'number') {
+            // Fallback to badge uptime if available
             const value = monitor.uptime24h;
             const rounded = value >= 100 ? value.toFixed(0) : value.toFixed(2);
             this._uptime.text = `24h ${rounded}%`;
@@ -244,7 +255,8 @@ class KumaIndicator extends PanelMenu.Button {
         this._logLevelIndex = 1;
         this._fetcher = new MonitorFetcher();
         this._previousMonitorStates = new Map(); // Track previous states for notifications
-        this._badgeCache = new Map();
+        this._uptimeHistory = new Map(); // Store 24h uptime history for each monitor: monitorId -> [{timestamp, status, uptime}]
+        this._loadUptimeHistory();
 
         this._summaryState = {
             up: 0,
@@ -363,6 +375,7 @@ class KumaIndicator extends PanelMenu.Button {
             'api-key',
             'refresh-seconds',
             'show-latency',
+            'show-calculated-uptime',
             'appearance',
             'log-level',
             'demo-mode',
@@ -386,7 +399,7 @@ class KumaIndicator extends PanelMenu.Button {
                 else if (key === 'show-text')
                     this._updateTextVisibility();
 
-                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'show-latency', 'selected-services', 'enable-notifications', 'notify-on-recovery', 'show-badges'].includes(key))
+                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'show-latency', 'show-calculated-uptime', 'selected-services', 'enable-notifications', 'notify-on-recovery'].includes(key))
                     this._refresh();
             });
             this._settingsConnections.push(id);
@@ -403,12 +416,12 @@ class KumaIndicator extends PanelMenu.Button {
     this._config.metricsEndpoint = this._settings.get_string('metrics-endpoint').trim();
         this._config.refreshSeconds = Math.max(10, this._settings.get_int('refresh-seconds'));
         this._config.showLatency = this._settings.get_boolean('show-latency');
+        this._config.showCalculatedUptime = this._settings.get_boolean('show-calculated-uptime');
         this._config.appearance = this._settings.get_string('appearance') || 'normal';
         this._config.logLevel = this._settings.get_string('log-level') || 'info';
         this._config.demoMode = this._settings.get_boolean('demo-mode');
         this._config.selectedServices = this._settings.get_strv('selected-services');
         this._config.showText = this._settings.get_boolean('show-text');
-        this._config.showBadges = this._settings.get_boolean('show-badges');
         this._config.enableNotifications = this._settings.get_boolean('enable-notifications');
         this._config.notifyOnRecovery = this._settings.get_boolean('notify-on-recovery');
 
@@ -483,8 +496,8 @@ class KumaIndicator extends PanelMenu.Button {
                 this._log('debug', `Filtered to ${monitors.length} selected services`);
             }
 
-            await this._populateUptimeBadges(monitors);
             this._updateMonitorList(monitors);
+            this._storeUptimeHistory(monitors);
             this._checkForStatusChanges(monitors);
             this._updateSummary(monitors);
             // Tooltips not supported in GNOME Shell 46+ for panel buttons
@@ -533,10 +546,11 @@ class KumaIndicator extends PanelMenu.Button {
             seen.add(id);
 
             let row = this._rows.get(id);
+            const calculatedUptime = this._config.showCalculatedUptime ? this._calculateUptimeFromHistory(id) : null;
             if (row) {
-                row.update(monitor, this._config.showLatency, this._config.showBadges);
+                row.update(monitor, this._config.showLatency, this._config.showBadges, this._config.showCalculatedUptime, calculatedUptime);
             } else {
-                row = new MonitorRow(monitor, this._config.showLatency, this._config.showBadges);
+                row = new MonitorRow(monitor, this._config.showLatency, this._config.showBadges, this._config.showCalculatedUptime, calculatedUptime);
                 this._rows.set(id, row);
             }
 
@@ -555,52 +569,134 @@ class KumaIndicator extends PanelMenu.Button {
         }
     }
 
-    async _populateUptimeBadges(monitors) {
+    _storeUptimeHistory(monitors) {
         if (!Array.isArray(monitors) || monitors.length === 0)
             return;
 
-        if (!this._config.showBadges) {
-            for (const monitor of monitors) {
-                if (monitor)
-                    monitor.uptime24h = null;
-            }
-            return;
-        }
-
-        if (!this._config.baseUrl) {
-            for (const monitor of monitors) {
-                if (typeof monitor?.uptime24h !== 'number')
-                    monitor.uptime24h = null;
-            }
-            return;
-        }
-
         const now = Date.now();
-        const tasks = monitors.map(async monitor => {
-            const rawId = monitor?.id;
-            if (rawId === undefined || rawId === null)
-                return;
+        const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
 
-            const cacheKey = String(rawId);
-            const cached = this._badgeCache.get(cacheKey);
-            if (cached && (now - cached.timestamp) < BADGE_CACHE_TTL_MS) {
-                monitor.uptime24h = (typeof cached.value === 'number') ? cached.value : null;
+        for (const monitor of monitors) {
+            const id = monitor.id;
+            if (!id)
+                continue;
+
+            // Get or create history array for this monitor
+            let history = this._uptimeHistory.get(id);
+            if (!history) {
+                history = [];
+                this._uptimeHistory.set(id, history);
+            }
+
+            // Add current data point
+            const dataPoint = {
+                timestamp: now,
+                status: monitor.status || 'unknown',
+                uptime: typeof monitor.uptime24h === 'number' ? monitor.uptime24h : null,
+                latencyMs: typeof monitor.latencyMs === 'number' ? monitor.latencyMs : null,
+            };
+            history.push(dataPoint);
+
+            // Remove data points older than 24 hours
+            const filtered = history.filter(point => point.timestamp >= twentyFourHoursAgo);
+            this._uptimeHistory.set(id, filtered);
+
+            this._log('debug', `Stored uptime history for ${id}: ${filtered.length} data points`);
+        }
+
+        // Clean up history for monitors that no longer exist
+        const currentMonitorIds = new Set(monitors.map(m => m.id).filter(id => id));
+        for (const [id, _] of this._uptimeHistory.entries()) {
+            if (!currentMonitorIds.has(id)) {
+                this._uptimeHistory.delete(id);
+                this._log('debug', `Removed history for deleted monitor ${id}`);
+            }
+        }
+
+        // Persist to disk
+        this._saveUptimeHistory();
+    }
+
+    _calculateUptimeFromHistory(monitorId) {
+        const history = this._uptimeHistory.get(monitorId);
+        if (!history || history.length === 0)
+            return null;
+
+        // Count data points where status is 'up'
+        const upCount = history.filter(point => point.status === 'up').length;
+        const totalCount = history.length;
+
+        if (totalCount === 0)
+            return null;
+
+        // Calculate percentage
+        const percentage = (upCount / totalCount) * 100;
+        return percentage;
+    }
+
+    _loadUptimeHistory() {
+        try {
+            if (!GLib.file_test(UPTIME_HISTORY_FILE, GLib.FileTest.EXISTS)) {
+                this._log('debug', 'No uptime history file found');
                 return;
             }
 
-            try {
-                const value = await this._fetcher.fetchUptimeBadge(rawId, this._config, {
-                    log: (level, message) => this._log(level, message),
-                });
-                monitor.uptime24h = (typeof value === 'number') ? value : null;
-                this._badgeCache.set(cacheKey, { value: monitor.uptime24h, timestamp: Date.now() });
-            } catch (error) {
-                this._log('debug', `Failed to fetch uptime badge for ${cacheKey}: ${error.message}`);
-                monitor.uptime24h = null;
+            const [ok, contents] = GLib.file_get_contents(UPTIME_HISTORY_FILE);
+            if (!ok || !contents) {
+                this._log('debug', 'Failed to read uptime history file');
+                return;
             }
-        });
 
-        await Promise.all(tasks);
+            const json = new TextDecoder().decode(contents);
+            const data = JSON.parse(json);
+            
+            if (!data || typeof data !== 'object') {
+                this._log('debug', 'Invalid uptime history data');
+                return;
+            }
+
+            // Restore history from JSON object to Map
+            const now = Date.now();
+            const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+            
+            for (const [id, history] of Object.entries(data)) {
+                if (Array.isArray(history)) {
+                    // Filter out old entries while loading
+                    const filtered = history.filter(point => point.timestamp >= twentyFourHoursAgo);
+                    if (filtered.length > 0) {
+                        this._uptimeHistory.set(id, filtered);
+                    }
+                }
+            }
+
+            this._log('info', `Loaded uptime history for ${this._uptimeHistory.size} monitors`);
+        } catch (error) {
+            this._log('error', `Failed to load uptime history: ${error.message}`);
+        }
+    }
+
+    _saveUptimeHistory() {
+        try {
+            // Ensure cache directory exists
+            GLib.mkdir_with_parents(UPTIME_HISTORY_CACHE_DIR, 0o755);
+
+            // Convert Map to plain object for JSON serialization
+            const data = {};
+            for (const [id, history] of this._uptimeHistory.entries()) {
+                data[id] = history;
+            }
+
+            const json = JSON.stringify(data, null, 2);
+            const success = GLib.file_set_contents(UPTIME_HISTORY_FILE, json);
+            
+            if (!success) {
+                this._log('error', 'Failed to write uptime history file');
+            } else {
+                this._log('debug', `Saved uptime history for ${this._uptimeHistory.size} monitors`);
+            }
+        } catch (error) {
+            this._log('error', `Failed to save uptime history: ${error.message}`);
+        }
     }
 
     _updateSummary(monitors) {

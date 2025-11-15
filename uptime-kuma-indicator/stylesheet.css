@@ -66,6 +66,15 @@
     min-width: 160px;
 }
 
+.kuma-badge-icon {
+    icon-size: 16px;
+    margin-right: 8px;
+}
+
+.kuma-appearance-compact .kuma-badge-icon {
+    icon-size: 14px;
+}
+
 .kuma-monitor-latency {
     color: rgba(235, 235, 235, 0.75);
     min-width: 72px;

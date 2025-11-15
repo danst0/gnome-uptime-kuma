@@ -82,6 +82,11 @@
         <summary>Show uptime badges</summary>
         <description>Display the 24-hour uptime badge next to each monitor entry.</description>
       </key>
+    <key name="show-calculated-uptime" type="b">
+      <default>false</default>
+      <summary>Show calculated uptime percentage</summary>
+      <description>Calculate and display uptime percentage from historical data collected over the last 24 hours.</description>
+    </key>
     <key name="enable-notifications" type="b">
       <default>true</default>
       <summary>Enable notifications</summary>
