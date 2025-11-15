@@ -4,7 +4,7 @@
 
 ![GNOME Shell Extension](https://img.shields.io/badge/GNOME%20Shell-46%20%7C%2047%20%7C%2048%20%7C%2049-blue?style=flat-square&logo=gnome)
 ![License](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-green?style=flat-square)
-![Version](https://img.shields.io/badge/version-4-orange?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.3-orange?style=flat-square)
 
 **Monitor your [Uptime Kuma](https://github.com/louislam/uptime-kuma) services directly from your GNOME desktop.**
 
@@ -36,6 +36,15 @@
 - **🌍 Internationalized**: Full localization support (English, German, Swedish, Japanese)
 - **🛡️ Robust Error Handling**: Graceful failures with informative tooltips and automatic retry logic
 - **🧪 Demo Mode**: Test the UI with mock data before connecting to your instance
+- **🔍 Keyboard-First Search**: Quickly filter monitors inside the dropdown via inline search with substring matching
+
+## 🆕 What's New in 1.3
+
+- Added a command palette style search box to the monitor selector so you can jump directly to any service without scrolling.
+- Improved substring matching and keyboard navigation inside dropdowns for more forgiving queries.
+- Removed the obsolete badge renderer from the panel to keep the indicator consistent across GNOME Shell 46-49.
+
+If you are updating from v1.1, these usability upgrades also include the bug fixes released in v1.2.
 
 ## 📦 Requirements
 

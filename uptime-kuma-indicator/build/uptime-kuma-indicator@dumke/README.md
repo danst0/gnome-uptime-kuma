@@ -1,6 +1,6 @@
 # Uptime Kuma Indicator
 
-GNOME Shell extension (GNOME 46–48) that embeds uptime information from your Uptime Kuma instance directly into the top bar.
+GNOME Shell extension (GNOME 46–49) that embeds uptime information from your Uptime Kuma instance directly into the top bar.
 
 ## ✨ Features
 
@@ -8,12 +8,13 @@ GNOME Shell extension (GNOME 46–48) that embeds uptime information from your U
 - Scrollable popup listing monitors with status, latency, and relative timestamps.
 - Supports public status page JSON _and_ the authenticated REST API with Secret Service storage for the token.
 - Configurable refresh cadence, appearance, list length, and logging verbosity.
+- Inline search with substring matching for the monitor selector so you can jump to services without leaving the keyboard.
 - Graceful error handling with informative tooltips and optional demo data for UI testing.
 - Fully localized using GNU gettext (English, German, Swedish, and Japanese included).
 
 ## 📦 Requirements
 
-- GNOME Shell 46, 47, or 48
+- GNOME Shell 46, 47, 48, or 49
 - GJS with Soup 3 and libadwaita 1.4+
 - Uptime Kuma instance (0.10+) with either public status page JSON or API access
 
@@ -33,13 +34,13 @@ Manual steps if you prefer to copy the files yourself:
 
    ```bash
    mkdir -p ~/.local/share/gnome-shell/extensions
-   cp -r uptime-kuma-indicator ~/.local/share/gnome-shell/extensions/uptime-kuma-indicator@dumke
+   cp -r uptime-kuma-indicator ~/.local/share/gnome-shell/extensions/uptime-kuma-indicator@uptime.dumke.me
    ```
 
 2. Compile the GSettings schema:
 
    ```bash
-   glib-compile-schemas ~/.local/share/gnome-shell/extensions/uptime-kuma-indicator@dumke/schemas
+   glib-compile-schemas ~/.local/share/gnome-shell/extensions/uptime-kuma-indicator@uptime.dumke.me/schemas
    ```
 
 3. Reload GNOME Shell:
@@ -82,7 +83,7 @@ journalctl -f -o cat /usr/bin/gnome-shell | grep -i "kuma-indicator"
 To run the preferences dialog without the shell:
 
 ```bash
-gnome-extensions prefs uptime-kuma-indicator@dumke
+gnome-extensions prefs uptime-kuma-indicator@uptime.dumke.me
 ```
 
 ## 🔁 Behaviour Notes
