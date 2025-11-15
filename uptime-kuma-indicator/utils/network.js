@@ -8,6 +8,7 @@ const DEFAULT_RETRIES = 3;
 const RETRY_BACKOFF = 1.6;
 const USER_AGENT = 'UptimeKumaIndicator/1.0 (GNOME Shell Extension)';
 const HEARTBEAT_LIMIT = 24;
+const BADGE_PERCENTAGE_PATTERN = />\s*(\d+(?:[.,]\d+)?)\s*%/;
 
 function bytesToString(bytes) {
     if (!bytes)
@@ -35,6 +36,22 @@ function joinUrl(base, path) {
     const cleanedBase = base.endsWith('/') ? base.slice(0, -1) : base;
     const cleanedPath = path.startsWith('/') ? path.slice(1) : path;
     return `${cleanedBase}/${cleanedPath}`;
+}
+
+function parseBadgePercentage(svg) {
+    if (typeof svg !== 'string' || svg.length === 0)
+        return null;
+
+    const match = BADGE_PERCENTAGE_PATTERN.exec(svg);
+    if (!match)
+        return null;
+
+    const normalized = match[1].replace(',', '.');
+    const value = Number.parseFloat(normalized);
+    if (!Number.isFinite(value))
+        return null;
+
+    return value;
 }
 
 export class MonitorFetcher {
@@ -78,6 +95,29 @@ export class MonitorFetcher {
         return this._fetchPrivateApi(config, helpers, log);
     }
 
+    async fetchUptimeBadge(monitorId, config, helpers = {}) {
+        if (monitorId === undefined || monitorId === null)
+            return null;
+
+        const { baseUrl } = config;
+        if (!baseUrl)
+            throw new Error(_('Base URL is missing.'));
+
+        const log = helpers.log ?? (() => {});
+        const encodedId = encodeURIComponent(String(monitorId));
+        const endpoint = `api/badge/${encodedId}/uptime/24h`;
+        const url = joinUrl(baseUrl, endpoint);
+        log('debug', `Fetching uptime badge from ${url}`);
+
+        const svg = await this._request(url, {
+            headers: {
+                Accept: 'image/svg+xml,*/*;q=0.8',
+            },
+        });
+
+        return parseBadgePercentage(svg);
+    }
+
     async _fetchStatusPage(config, log) {
         const { baseUrl, statusPageJsonUrl, statusPageSlug, statusPageEndpoint } = config;
 
@@ -95,9 +135,7 @@ export class MonitorFetcher {
         log('debug', `Fetching status page from ${url}`);
 
         const json = await this._getJson(url, { headers: { Accept: 'application/json' } });
-        const { monitors, heartbeatMap } = normalizeStatusPage(json, {
-            includeHistory: Boolean(config.showSparkline),
-        });
+        const { monitors, heartbeatMap } = normalizeStatusPage(json);
         return { source: 'status-page', monitors, heartbeatMap };
     }
 

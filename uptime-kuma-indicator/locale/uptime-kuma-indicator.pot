@@ -244,11 +244,11 @@ msgid "Display status summary next to the indicator dot."
 msgstr ""
 
 #: prefs.js:446
-msgid "Show history sparkline"
+msgid "Show uptime badges"
 msgstr ""
 
 #: prefs.js:446
-msgid "Display a 24-hour status bar next to each monitor."
+msgid "Display the 24-hour uptime badge next to each monitor entry."
 msgstr ""
 
 #: prefs.js:446

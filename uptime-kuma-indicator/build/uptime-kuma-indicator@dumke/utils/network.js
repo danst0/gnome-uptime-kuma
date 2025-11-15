@@ -7,6 +7,7 @@ const DEFAULT_TIMEOUT_SECONDS = 8;
 const DEFAULT_RETRIES = 3;
 const RETRY_BACKOFF = 1.6;
 const USER_AGENT = 'UptimeKumaIndicator/1.0 (GNOME Shell Extension)';
+const BADGE_PERCENTAGE_PATTERN = />\s*(\d+(?:[.,]\d+)?)\s*%/;
 
 function bytesToString(bytes) {
     if (!bytes)
@@ -34,6 +35,22 @@ function joinUrl(base, path) {
     const cleanedBase = base.endsWith('/') ? base.slice(0, -1) : base;
     const cleanedPath = path.startsWith('/') ? path.slice(1) : path;
     return `${cleanedBase}/${cleanedPath}`;
+}
+
+function parseBadgePercentage(svg) {
+    if (typeof svg !== 'string' || svg.length === 0)
+        return null;
+
+    const match = BADGE_PERCENTAGE_PATTERN.exec(svg);
+    if (!match)
+        return null;
+
+    const normalized = match[1].replace(',', '.');
+    const value = Number.parseFloat(normalized);
+    if (!Number.isFinite(value))
+        return null;
+
+    return value;
 }
 
 function sleepAsync(milliseconds) {
@@ -66,6 +83,29 @@ export class MonitorFetcher {
             return this._fetchStatusPage(config, log);
 
         return this._fetchPrivateApi(config, helpers, log);
+    }
+
+    async fetchUptimeBadge(monitorId, config, helpers = {}) {
+        if (monitorId === undefined || monitorId === null)
+            return null;
+
+        const { baseUrl } = config;
+        if (!baseUrl)
+            throw new Error(_('Base URL is missing.'));
+
+        const log = helpers.log ?? (() => {});
+        const encodedId = encodeURIComponent(String(monitorId));
+        const endpoint = `api/badge/${encodedId}/uptime/24h`;
+        const url = joinUrl(baseUrl, endpoint);
+        log('debug', `Fetching uptime badge from ${url}`);
+
+        const svg = await this._request(url, {
+            headers: {
+                Accept: 'image/svg+xml,*/*;q=0.8',
+            },
+        });
+
+        return parseBadgePercentage(svg);
     }
 
     async _fetchStatusPage(config, log) {
@@ -113,7 +153,15 @@ export class MonitorFetcher {
         return { source: 'api', monitors };
     }
 
-    async _getJson(url, { headers = {}, method = 'GET', body = null } = {}) {
+    async _getJson(url, options = {}) {
+        const text = await this._request(url, options);
+        if (!text)
+            return null;
+
+        return JSON.parse(text);
+    }
+
+    async _request(url, { headers = {}, method = 'GET', body = null } = {}) {
         let attempt = 0;
         let wait = 400;
         let lastError = null;
@@ -125,15 +173,29 @@ export class MonitorFetcher {
             for (const [key, value] of Object.entries(headers))
                 message.request_headers.replace(key, value);
 
-            if (body)
-                message.set_request_body_from_bytes('application/json', new GLib.Bytes(body));
+            if (body) {
+                let payload = body;
+                let mime = 'application/json';
+
+                if (typeof payload === 'string') {
+                    payload = new TextEncoder().encode(payload);
+                    mime = 'text/plain';
+                } else if (payload instanceof Uint8Array) {
+                    mime = 'application/octet-stream';
+                } else if (!(payload instanceof GLib.Bytes)) {
+                    payload = new TextEncoder().encode(JSON.stringify(payload));
+                }
+
+                const bytes = payload instanceof GLib.Bytes ? payload : new GLib.Bytes(payload);
+                message.set_request_body_from_bytes(mime, bytes);
+            }
 
             try {
                 const bytes = await this._session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null);
                 const status = message.get_status();
 
                 if (status >= 200 && status < 300)
-                    return JSON.parse(bytesToString(bytes));
+                    return bytesToString(bytes);
 
                 lastError = new Error(`HTTP ${status}`);
             } catch (error) {

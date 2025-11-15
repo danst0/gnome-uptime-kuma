@@ -11,8 +11,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import { MonitorFetcher } from './utils/network.js';
-import { Sparkline } from './utils/sparkline.js';
-import { aggregateMonitors, mockMonitors, STATUS_PRIORITY } from './utils/parsers.js';
+import { aggregateMonitors, mockMonitors } from './utils/parsers.js';
 import { _, ngettext } from './utils/i18n.js';
 
 const INDICATOR_NAME = 'uptime-kuma-indicator';
@@ -28,6 +27,7 @@ const LOG_LEVELS = ['error', 'info', 'debug'];
 
 const USEC_PER_SEC = 1_000_000;
 const REFRESH_ON_ENABLE_DELAY_MS = 200;
+const BADGE_CACHE_TTL_MS = 10 * 60 * 1000;
 
 function toDateTime(value) {
     if (!value)
@@ -76,7 +76,7 @@ function formatRelative(deltaSeconds) {
 
 const MonitorRow = GObject.registerClass(
 class MonitorRow extends St.BoxLayout {
-    _init(monitor, showLatency, showSparkline) {
+    _init(monitor, showLatency, showBadges) {
         super._init({
             style_class: 'kuma-list-row',
             vertical: false,
@@ -97,17 +97,6 @@ class MonitorRow extends St.BoxLayout {
             y_align: Clutter.ActorAlign.CENTER,
         });
 
-        this._sparkline = new Sparkline({ width: 96, height: 20 });
-        this._sparkline.add_style_class_name('kuma-sparkline-row');
-        this._sparkline.visible = Boolean(showSparkline);
-        this._sparkline.y_align = Clutter.ActorAlign.CENTER;    this._indicatorGroup = new St.BoxLayout({ vertical: false, y_align: Clutter.ActorAlign.CENTER });
-        if (typeof this._indicatorGroup.set_spacing === 'function')
-            this._indicatorGroup.set_spacing(6);
-        else
-            this._indicatorGroup.spacing = 6;
-        this._indicatorGroup.add_child(this._dot);
-        this._indicatorGroup.add_child(this._sparkline);
-
         this._name = new St.Label({
             text: monitor.name ?? '—',
             style_class: 'kuma-monitor-name',
@@ -116,10 +105,16 @@ class MonitorRow extends St.BoxLayout {
         });
         if (this._name.clutter_text)
             this._name.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-
         this._latency = new St.Label({
             text: '',
             style_class: 'kuma-monitor-latency',
+            y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.END,
+        });
+
+        this._uptime = new St.Label({
+            text: '',
+            style_class: 'kuma-monitor-uptime',
             y_align: Clutter.ActorAlign.CENTER,
             x_align: Clutter.ActorAlign.END,
         });
@@ -131,25 +126,22 @@ class MonitorRow extends St.BoxLayout {
             x_align: Clutter.ActorAlign.END,
         });
 
-        this.add_child(this._indicatorGroup);
+        this.add_child(this._dot);
         this.add_child(this._name);
         this.add_child(this._latency);
+        this.add_child(this._uptime);
         this.add_child(this._lastCheck);
-
-        this.update(monitor, showLatency, showSparkline);
+        this.update(monitor, showLatency, showBadges);
     }
 
     get monitorId() {
         return this._monitorId;
     }
 
-    update(monitor, showLatency, showSparkline) {
+    update(monitor, showLatency, showBadges) {
         this._monitorId = monitor.id;
         this._name.text = monitor.name ?? '—';
         this._setStatusClass(monitor.status);
-
-        // Note: Tooltips are not easily available in GNOME Shell 46+
-        // The message field is typically empty anyway, so we skip tooltip support
 
         if (showLatency) {
             if (typeof monitor.latencyMs === 'number')
@@ -161,15 +153,21 @@ class MonitorRow extends St.BoxLayout {
             this._latency.visible = false;
         }
 
+        if (showBadges && typeof monitor.uptime24h === 'number') {
+            const value = monitor.uptime24h;
+            const rounded = value >= 100 ? value.toFixed(0) : value.toFixed(2);
+            this._uptime.text = `24h ${rounded}%`;
+            this._uptime.visible = true;
+        } else {
+            this._uptime.visible = false;
+        }
+
         if (monitor.relativeLastCheck) {
             this._lastCheck.text = monitor.relativeLastCheck;
             this._lastCheck.visible = true;
         } else {
             this._lastCheck.visible = false;
         }
-
-        this._sparkline.setSamples(Array.isArray(monitor.history) ? monitor.history : []);
-        this._sparkline.visible = Boolean(showSparkline);
     }
 
     _setStatusClass(status) {
@@ -182,13 +180,6 @@ class MonitorRow extends St.BoxLayout {
         this._dot.add_style_class_name(style);
     }
 
-    setSparklineVisible(visible) {
-        this._sparkline.visible = Boolean(visible);
-    }
-
-    setSparklineMode(mode) {
-        this._sparkline.setMode(mode);
-    }
 });
 
 const ScrollSection = GObject.registerClass(
@@ -253,7 +244,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._logLevelIndex = 1;
         this._fetcher = new MonitorFetcher();
         this._previousMonitorStates = new Map(); // Track previous states for notifications
-        this._historyCache = new Map();
+        this._badgeCache = new Map();
 
         this._summaryState = {
             up: 0,
@@ -280,10 +271,7 @@ class KumaIndicator extends PanelMenu.Button {
             y_align: Clutter.ActorAlign.CENTER,
         });
 
-        this._summarySparkline = new Sparkline({ width: 96, height: 20 });
-        this._summarySparkline.add_style_class_name('kuma-sparkline-summary');
-        this._summarySparkline.visible = false;
-        this._summarySparkline.y_align = Clutter.ActorAlign.CENTER;        this._summaryLabel = new St.Label({
+        this._summaryLabel = new St.Label({
             text: _('—/—'),
             style_class: 'kuma-indicator-summary',
             y_align: Clutter.ActorAlign.CENTER,
@@ -292,9 +280,8 @@ class KumaIndicator extends PanelMenu.Button {
         if (this._summaryLabel.clutter_text)
             this._summaryLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
 
-    this._indicatorBox.add_child(this._dotActor);
-    this._indicatorBox.add_child(this._summarySparkline);
-    this._indicatorBox.add_child(this._summaryLabel);
+        this._indicatorBox.add_child(this._dotActor);
+        this._indicatorBox.add_child(this._summaryLabel);
         this.add_child(this._indicatorBox);
 
         this._monitorSection = new ScrollSection(320);
@@ -347,10 +334,7 @@ class KumaIndicator extends PanelMenu.Button {
             row.destroy();
         }
         this._rows.clear();
-        this._historyCache.clear();
-
-        if (this._summarySparkline)
-            this._summarySparkline.clear();
+        this._badgeCache.clear();
 
         if (this._fetcher) {
             this._fetcher.destroy();
@@ -384,7 +368,7 @@ class KumaIndicator extends PanelMenu.Button {
             'demo-mode',
             'selected-services',
             'show-text',
-            'show-sparkline',
+            'show-badges',
             'enable-notifications',
             'notify-on-recovery',
         ];
@@ -401,12 +385,8 @@ class KumaIndicator extends PanelMenu.Button {
                     this._updateLogLevel();
                 else if (key === 'show-text')
                     this._updateTextVisibility();
-                else if (key === 'show-sparkline') {
-                    this._updateSparklineVisibility();
-                    this._refresh();
-                }
 
-                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'show-latency', 'selected-services', 'enable-notifications', 'notify-on-recovery'].includes(key))
+                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'show-latency', 'selected-services', 'enable-notifications', 'notify-on-recovery', 'show-badges'].includes(key))
                     this._refresh();
             });
             this._settingsConnections.push(id);
@@ -428,14 +408,13 @@ class KumaIndicator extends PanelMenu.Button {
         this._config.demoMode = this._settings.get_boolean('demo-mode');
         this._config.selectedServices = this._settings.get_strv('selected-services');
         this._config.showText = this._settings.get_boolean('show-text');
-    this._config.showSparkline = this._settings.get_boolean('show-sparkline');
+        this._config.showBadges = this._settings.get_boolean('show-badges');
         this._config.enableNotifications = this._settings.get_boolean('enable-notifications');
         this._config.notifyOnRecovery = this._settings.get_boolean('notify-on-recovery');
 
         this._applyAppearance();
         this._updateLogLevel();
         this._updateTextVisibility();
-        this._updateSparklineVisibility();
         this._updateOpenItemSensitivity();
     }
 
@@ -444,16 +423,6 @@ class KumaIndicator extends PanelMenu.Button {
         this._indicatorBox.remove_style_class_name('kuma-appearance-normal');
         const appearance = this._config.appearance === 'compact' ? 'kuma-appearance-compact' : 'kuma-appearance-normal';
         this._indicatorBox.add_style_class_name(appearance);
-        this._applySparklineSizing();
-    }
-
-    _applySparklineSizing() {
-        const mode = this._config.appearance === 'compact' ? 'compact' : 'normal';
-        if (this._summarySparkline)
-            this._summarySparkline.setMode(mode);
-
-        for (const row of this._rows.values())
-            row.setSparklineMode(mode);
     }
 
     _updateLogLevel() {
@@ -464,18 +433,6 @@ class KumaIndicator extends PanelMenu.Button {
 
     _updateTextVisibility() {
         this._summaryLabel.visible = this._config.showText;
-    }
-
-    _updateSparklineVisibility() {
-        const visible = this._config.showSparkline;
-        if (this._summarySparkline) {
-            this._summarySparkline.visible = visible;
-            if (!visible)
-                this._summarySparkline.setSamples([]);
-        }
-
-        for (const row of this._rows.values())
-            row.setSparklineVisible(visible);
     }
 
     _scheduleRefresh() {
@@ -502,14 +459,13 @@ class KumaIndicator extends PanelMenu.Button {
 
         try {
             let monitors;
-            let payload = null;
             // Use mock data only if demo mode is enabled AND no baseUrl is configured
             // OR if baseUrl is missing (regardless of demo mode)
             if (!this._config.baseUrl || (this._config.demoMode && !this._config.baseUrl)) {
                 this._log('info', 'Using mock monitors (demo mode or missing baseUrl)');
                 monitors = mockMonitors();
             } else {
-                payload = await this._fetcher.fetch(this._config, {
+                const payload = await this._fetcher.fetch(this._config, {
                     getApiKey: () => this._lookupApiKey(),
                     log: (level, message) => this._log(level, message),
                 });
@@ -527,12 +483,10 @@ class KumaIndicator extends PanelMenu.Button {
                 this._log('debug', `Filtered to ${monitors.length} selected services`);
             }
 
-            if (this._config.showSparkline)
-                await this._populateMonitorHistory(monitors, payload);
+            await this._populateUptimeBadges(monitors);
             this._updateMonitorList(monitors);
             this._checkForStatusChanges(monitors);
             this._updateSummary(monitors);
-            this._cacheMonitorHistory(monitors);
             // Tooltips not supported in GNOME Shell 46+ for panel buttons
             // this._setTooltipFromSummary();
         } catch (error) {
@@ -580,10 +534,9 @@ class KumaIndicator extends PanelMenu.Button {
 
             let row = this._rows.get(id);
             if (row) {
-                row.update(monitor, this._config.showLatency, this._config.showSparkline);
+                row.update(monitor, this._config.showLatency, this._config.showBadges);
             } else {
-                row = new MonitorRow(monitor, this._config.showLatency, this._config.showSparkline);
-                row.setSparklineMode(this._config.appearance === 'compact' ? 'compact' : 'normal');
+                row = new MonitorRow(monitor, this._config.showLatency, this._config.showBadges);
                 this._rows.set(id, row);
             }
 
@@ -602,62 +555,52 @@ class KumaIndicator extends PanelMenu.Button {
         }
     }
 
-    async _populateMonitorHistory(monitors, payload) {
+    async _populateUptimeBadges(monitors) {
         if (!Array.isArray(monitors) || monitors.length === 0)
             return;
 
-        if (payload?.heartbeatMap instanceof Map) {
+        if (!this._config.showBadges) {
             for (const monitor of monitors) {
-                if (!monitor)
-                    continue;
-
-                const candidates = [monitor.id, String(monitor.id ?? '')];
-                let series = null;
-                for (const candidate of candidates) {
-                    if (!candidate)
-                        continue;
-                    const key = String(candidate);
-                    if (payload.heartbeatMap.has(key)) {
-                        series = payload.heartbeatMap.get(key);
-                        break;
-                    }
-                }
-                if (series && (!Array.isArray(monitor.history) || monitor.history.length === 0))
-                    monitor.history = series;
+                if (monitor)
+                    monitor.uptime24h = null;
             }
-        }
-
-        for (const monitor of monitors) {
-            const id = monitor?.id;
-            if (id === undefined || id === null)
-                continue;
-
-            if ((!Array.isArray(monitor.history) || monitor.history.length === 0) && this._historyCache.has(String(id)))
-                monitor.history = this._historyCache.get(String(id));
-        }
-
-        const missing = monitors.some(m => !Array.isArray(m.history) || m.history.length === 0);
-        if (!missing)
             return;
+        }
 
-        await this._fetcher.populateHistory(monitors, this._config, {
-            getApiKey: () => this._lookupApiKey(),
-            log: (level, message) => this._log(level, message),
+        if (!this._config.baseUrl) {
+            for (const monitor of monitors) {
+                if (typeof monitor?.uptime24h !== 'number')
+                    monitor.uptime24h = null;
+            }
+            return;
+        }
+
+        const now = Date.now();
+        const tasks = monitors.map(async monitor => {
+            const rawId = monitor?.id;
+            if (rawId === undefined || rawId === null)
+                return;
+
+            const cacheKey = String(rawId);
+            const cached = this._badgeCache.get(cacheKey);
+            if (cached && (now - cached.timestamp) < BADGE_CACHE_TTL_MS) {
+                monitor.uptime24h = (typeof cached.value === 'number') ? cached.value : null;
+                return;
+            }
+
+            try {
+                const value = await this._fetcher.fetchUptimeBadge(rawId, this._config, {
+                    log: (level, message) => this._log(level, message),
+                });
+                monitor.uptime24h = (typeof value === 'number') ? value : null;
+                this._badgeCache.set(cacheKey, { value: monitor.uptime24h, timestamp: Date.now() });
+            } catch (error) {
+                this._log('debug', `Failed to fetch uptime badge for ${cacheKey}: ${error.message}`);
+                monitor.uptime24h = null;
+            }
         });
-    }
 
-    _cacheMonitorHistory(monitors) {
-        if (!Array.isArray(monitors) || monitors.length === 0)
-            return;
-
-        for (const monitor of monitors) {
-            const id = monitor?.id;
-            if (!id)
-                continue;
-
-            if (Array.isArray(monitor.history) && monitor.history.length > 0)
-                this._historyCache.set(String(id), monitor.history);
-        }
+        await Promise.all(tasks);
     }
 
     _updateSummary(monitors) {
@@ -668,64 +611,6 @@ class KumaIndicator extends PanelMenu.Button {
         const text = _('%d up / %d down').format(summary.up, summary.down);
         this._summaryLabel.text = text;
         this._switchDotClass(summary.status);
-        this._updateSummarySparkline(monitors);
-    }
-
-    _updateSummarySparkline(monitors) {
-        if (!this._summarySparkline)
-            return;
-
-        if (!this._config.showSparkline) {
-            this._summarySparkline.setSamples([]);
-            return;
-        }
-
-        const series = this._composeSummaryHistory(monitors);
-        this._summarySparkline.setSamples(series);
-    }
-
-    _composeSummaryHistory(monitors) {
-        if (!Array.isArray(monitors) || monitors.length === 0)
-            return [];
-
-        const bucketMap = new Map();
-
-        for (const monitor of monitors) {
-            const history = Array.isArray(monitor?.history) ? monitor.history : [];
-            for (const sample of history) {
-                if (!sample || typeof sample.timestamp !== 'number')
-                    continue;
-
-                const status = typeof sample.status === 'string' ? sample.status : 'unknown';
-                const key = sample.timestamp;
-                const list = bucketMap.get(key) ?? [];
-                list.push(status);
-                bucketMap.set(key, list);
-            }
-        }
-
-        if (bucketMap.size === 0)
-            return [];
-
-        const timestamps = Array.from(bucketMap.keys()).sort((a, b) => a - b);
-        return timestamps.map(timestamp => {
-            const entries = bucketMap.get(timestamp) ?? [];
-            if (entries.length === 0)
-                return { timestamp, status: 'unknown' };
-
-            let worst = 'up';
-            for (const status of entries) {
-                const candidateIndex = STATUS_PRIORITY.indexOf(status);
-                const currentIndex = STATUS_PRIORITY.indexOf(worst);
-                if (candidateIndex !== -1 && (currentIndex === -1 || candidateIndex < currentIndex))
-                    worst = status;
-            }
-
-            if (worst === 'maintenance')
-                worst = 'degraded';
-
-            return { timestamp, status: worst };
-        });
     }
 
     _checkForStatusChanges(monitors) {

@@ -11,19 +11,8 @@
     font-weight: 600;
 }
 
-.kuma-sparkline {
-    min-width: 96px;
-    min-height: 20px;
-    border-radius: 3px;
-}
-
-.kuma-sparkline-summary {
-    margin-right: 6px;
-}
-
-.kuma-sparkline-row {
-    min-width: 96px;
-    min-height: 20px;
+.kuma-indicator-group {
+    margin-right: 12px;
 }
 
 .kuma-appearance-compact .kuma-indicator-dot {
@@ -33,11 +22,6 @@
 
 .kuma-appearance-compact .kuma-indicator-summary {
     font-size: 11px;
-}
-
-.kuma-appearance-compact .kuma-sparkline-summary {
-    min-width: 72px;
-    min-height: 18px;
 }
 
 .kuma-indicator-dot.ok,
@@ -85,6 +69,12 @@
 .kuma-monitor-latency {
     color: rgba(235, 235, 235, 0.75);
     min-width: 72px;
+    text-align: right;
+}
+
+.kuma-monitor-uptime {
+    color: rgba(235, 235, 235, 0.8);
+    min-width: 90px;
     text-align: right;
 }
 

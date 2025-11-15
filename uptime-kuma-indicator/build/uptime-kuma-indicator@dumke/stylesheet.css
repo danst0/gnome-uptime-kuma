@@ -11,6 +11,10 @@
     font-weight: 600;
 }
 
+.kuma-indicator-group {
+    margin-right: 12px;
+}
+
 .kuma-appearance-compact .kuma-indicator-dot {
     font-size: 12px;
     margin-right: 2px;
@@ -40,6 +44,10 @@
     color: #c0bfbc;
 }
 
+.kuma-status-dot {
+    margin-right: 8px;
+}
+
 .kuma-monitor-list {
     margin: 6px 0;
 }
@@ -61,6 +69,12 @@
 .kuma-monitor-latency {
     color: rgba(235, 235, 235, 0.75);
     min-width: 72px;
+    text-align: right;
+}
+
+.kuma-monitor-uptime {
+    color: rgba(235, 235, 235, 0.8);
+    min-width: 90px;
     text-align: right;
 }
 

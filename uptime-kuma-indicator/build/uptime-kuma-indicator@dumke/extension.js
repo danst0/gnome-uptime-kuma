@@ -27,6 +27,7 @@ const LOG_LEVELS = ['error', 'info', 'debug'];
 
 const USEC_PER_SEC = 1_000_000;
 const REFRESH_ON_ENABLE_DELAY_MS = 200;
+const BADGE_CACHE_TTL_MS = 10 * 60 * 1000;
 
 function toDateTime(value) {
     if (!value)
@@ -75,7 +76,7 @@ function formatRelative(deltaSeconds) {
 
 const MonitorRow = GObject.registerClass(
 class MonitorRow extends St.BoxLayout {
-    _init(monitor, showLatency) {
+    _init(monitor, showLatency, showBadges) {
         super._init({
             style_class: 'kuma-list-row',
             vertical: false,
@@ -112,6 +113,13 @@ class MonitorRow extends St.BoxLayout {
             x_align: Clutter.ActorAlign.END,
         });
 
+        this._uptime = new St.Label({
+            text: '',
+            style_class: 'kuma-monitor-uptime',
+            y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.END,
+        });
+
         this._lastCheck = new St.Label({
             text: '',
             style_class: 'kuma-monitor-last-check',
@@ -122,22 +130,20 @@ class MonitorRow extends St.BoxLayout {
         this.add_child(this._dot);
         this.add_child(this._name);
         this.add_child(this._latency);
+        this.add_child(this._uptime);
         this.add_child(this._lastCheck);
 
-        this.update(monitor, showLatency);
+        this.update(monitor, showLatency, showBadges);
     }
 
     get monitorId() {
         return this._monitorId;
     }
 
-    update(monitor, showLatency) {
+    update(monitor, showLatency, showBadges) {
         this._monitorId = monitor.id;
         this._name.text = monitor.name ?? '—';
         this._setStatusClass(monitor.status);
-
-        // Note: Tooltips are not easily available in GNOME Shell 46+
-        // The message field is typically empty anyway, so we skip tooltip support
 
         if (showLatency) {
             if (typeof monitor.latencyMs === 'number')
@@ -147,6 +153,15 @@ class MonitorRow extends St.BoxLayout {
             this._latency.visible = true;
         } else {
             this._latency.visible = false;
+        }
+
+        if (showBadges && typeof monitor.uptime24h === 'number') {
+            const value = monitor.uptime24h;
+            const rounded = value >= 100 ? value.toFixed(0) : value.toFixed(2);
+            this._uptime.text = `24h ${rounded}%`;
+            this._uptime.visible = true;
+        } else {
+            this._uptime.visible = false;
         }
 
         if (monitor.relativeLastCheck) {
@@ -223,11 +238,14 @@ class KumaIndicator extends PanelMenu.Button {
         this._settings = extension.getSettings();
         this._settingsConnections = [];
         this._refreshLoopId = 0;
+        this._enableTimeoutId = 0;
         this._isRefreshing = false;
         this._rows = new Map();
         this._lastRefresh = null;
         this._logLevelIndex = 1;
         this._fetcher = new MonitorFetcher();
+        this._previousMonitorStates = new Map(); // Track previous states for notifications
+        this._badgeCache = new Map();
 
         this._summaryState = {
             up: 0,
@@ -291,8 +309,12 @@ class KumaIndicator extends PanelMenu.Button {
     start() {
         this._log('debug', 'Indicator started');
         this._scheduleRefresh();
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, REFRESH_ON_ENABLE_DELAY_MS, () => {
+        if (this._enableTimeoutId) {
+            GLib.source_remove(this._enableTimeoutId);
+        }
+        this._enableTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, REFRESH_ON_ENABLE_DELAY_MS, () => {
             this._refresh();
+            this._enableTimeoutId = 0;
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -303,9 +325,31 @@ class KumaIndicator extends PanelMenu.Button {
             this._refreshLoopId = 0;
         }
 
+        if (this._enableTimeoutId) {
+            GLib.source_remove(this._enableTimeoutId);
+            this._enableTimeoutId = 0;
+        }
+
+        // Destroy all monitor rows
+        for (const row of this._rows.values()) {
+            row.destroy();
+        }
+        this._rows.clear();
+        this._badgeCache.clear();
+
+        if (this._fetcher) {
+            this._fetcher.destroy();
+            this._fetcher = null;
+        }
+
         for (const id of this._settingsConnections)
             this._settings.disconnect(id);
         this._settingsConnections = [];
+
+        // Release settings reference
+        if (this._settings) {
+            this._settings = null;
+        }
     }
 
     _bindSettings() {
@@ -316,13 +360,18 @@ class KumaIndicator extends PanelMenu.Button {
             'status-page-endpoint',
             'status-page-json-url',
             'api-endpoint',
+            'metrics-endpoint',
+            'api-key',
             'refresh-seconds',
             'show-latency',
-            'max-items',
             'appearance',
             'log-level',
             'demo-mode',
             'selected-services',
+            'show-text',
+            'show-badges',
+            'enable-notifications',
+            'notify-on-recovery',
         ];
 
         for (const key of keys) {
@@ -335,8 +384,10 @@ class KumaIndicator extends PanelMenu.Button {
                     this._applyAppearance();
                 else if (key === 'log-level')
                     this._updateLogLevel();
+                else if (key === 'show-text')
+                    this._updateTextVisibility();
 
-                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'demo-mode', 'max-items', 'show-latency', 'selected-services'].includes(key))
+                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'show-latency', 'selected-services', 'enable-notifications', 'notify-on-recovery', 'show-badges'].includes(key))
                     this._refresh();
             });
             this._settingsConnections.push(id);
@@ -350,16 +401,21 @@ class KumaIndicator extends PanelMenu.Button {
         this._config.statusPageEndpoint = this._settings.get_string('status-page-endpoint').trim();
         this._config.statusPageJsonUrl = this._settings.get_string('status-page-json-url').trim();
         this._config.apiEndpoint = this._settings.get_string('api-endpoint').trim();
+    this._config.metricsEndpoint = this._settings.get_string('metrics-endpoint').trim();
         this._config.refreshSeconds = Math.max(10, this._settings.get_int('refresh-seconds'));
         this._config.showLatency = this._settings.get_boolean('show-latency');
-        this._config.maxItems = Math.max(1, this._settings.get_int('max-items'));
         this._config.appearance = this._settings.get_string('appearance') || 'normal';
         this._config.logLevel = this._settings.get_string('log-level') || 'info';
         this._config.demoMode = this._settings.get_boolean('demo-mode');
         this._config.selectedServices = this._settings.get_strv('selected-services');
+        this._config.showText = this._settings.get_boolean('show-text');
+        this._config.showBadges = this._settings.get_boolean('show-badges');
+        this._config.enableNotifications = this._settings.get_boolean('enable-notifications');
+        this._config.notifyOnRecovery = this._settings.get_boolean('notify-on-recovery');
 
         this._applyAppearance();
         this._updateLogLevel();
+        this._updateTextVisibility();
         this._updateOpenItemSensitivity();
     }
 
@@ -374,6 +430,10 @@ class KumaIndicator extends PanelMenu.Button {
         const level = this._config.logLevel;
         const index = LOG_LEVELS.indexOf(level);
         this._logLevelIndex = index >= 0 ? index : 1;
+    }
+
+    _updateTextVisibility() {
+        this._summaryLabel.visible = this._config.showText;
     }
 
     _scheduleRefresh() {
@@ -400,7 +460,9 @@ class KumaIndicator extends PanelMenu.Button {
 
         try {
             let monitors;
-            if (this._config.demoMode || !this._config.baseUrl) {
+            // Use mock data only if demo mode is enabled AND no baseUrl is configured
+            // OR if baseUrl is missing (regardless of demo mode)
+            if (!this._config.baseUrl || (this._config.demoMode && !this._config.baseUrl)) {
                 this._log('info', 'Using mock monitors (demo mode or missing baseUrl)');
                 monitors = mockMonitors();
             } else {
@@ -422,8 +484,9 @@ class KumaIndicator extends PanelMenu.Button {
                 this._log('debug', `Filtered to ${monitors.length} selected services`);
             }
 
-            monitors = monitors.slice(0, this._config.maxItems);
+            await this._populateUptimeBadges(monitors);
             this._updateMonitorList(monitors);
+            this._checkForStatusChanges(monitors);
             this._updateSummary(monitors);
             // Tooltips not supported in GNOME Shell 46+ for panel buttons
             // this._setTooltipFromSummary();
@@ -472,9 +535,9 @@ class KumaIndicator extends PanelMenu.Button {
 
             let row = this._rows.get(id);
             if (row) {
-                row.update(monitor, this._config.showLatency);
+                row.update(monitor, this._config.showLatency, this._config.showBadges);
             } else {
-                row = new MonitorRow(monitor, this._config.showLatency);
+                row = new MonitorRow(monitor, this._config.showLatency, this._config.showBadges);
                 this._rows.set(id, row);
             }
 
@@ -493,14 +556,112 @@ class KumaIndicator extends PanelMenu.Button {
         }
     }
 
+    async _populateUptimeBadges(monitors) {
+        if (!Array.isArray(monitors) || monitors.length === 0)
+            return;
+
+        if (!this._config.showBadges) {
+            for (const monitor of monitors) {
+                if (monitor)
+                    monitor.uptime24h = null;
+            }
+            return;
+        }
+
+        if (!this._config.baseUrl) {
+            for (const monitor of monitors) {
+                if (typeof monitor?.uptime24h !== 'number')
+                    monitor.uptime24h = null;
+            }
+            return;
+        }
+
+        const now = Date.now();
+        const tasks = monitors.map(async monitor => {
+            const rawId = monitor?.id;
+            if (rawId === undefined || rawId === null)
+                return;
+
+            const cacheKey = String(rawId);
+            const cached = this._badgeCache.get(cacheKey);
+            if (cached && (now - cached.timestamp) < BADGE_CACHE_TTL_MS) {
+                monitor.uptime24h = cached.value;
+                return;
+            }
+
+            try {
+                const value = await this._fetcher.fetchUptimeBadge(rawId, this._config, {
+                    log: (level, message) => this._log(level, message),
+                });
+                if (typeof value === 'number') {
+                    monitor.uptime24h = value;
+                    this._badgeCache.set(cacheKey, { value, timestamp: Date.now() });
+                } else {
+                    monitor.uptime24h = null;
+                }
+            } catch (error) {
+                this._log('debug', `Failed to fetch uptime badge for ${cacheKey}: ${error.message}`);
+            }
+        });
+
+        await Promise.all(tasks);
+    }
+
     _updateSummary(monitors) {
         const summary = aggregateMonitors(monitors);
         this._summaryState = summary;
         this._lastRefresh = GLib.DateTime.new_now_local();
 
-        const text = _('%(up)d up / %(down)d down').format({ up: summary.up, down: summary.down });
+        const text = _('%d up / %d down').format(summary.up, summary.down);
         this._summaryLabel.text = text;
         this._switchDotClass(summary.status);
+    }
+
+    _checkForStatusChanges(monitors) {
+        if (!this._config.enableNotifications)
+            return;
+
+        for (const monitor of monitors) {
+            const id = monitor.id;
+            const currentStatus = monitor.status;
+            const previousStatus = this._previousMonitorStates.get(id);
+
+            // Skip if this is the first time we see this monitor
+            if (previousStatus === undefined) {
+                this._previousMonitorStates.set(id, currentStatus);
+                continue;
+            }
+
+            // Check if status changed from up to down
+            if (previousStatus === 'up' && (currentStatus === 'down' || currentStatus === 'degraded')) {
+                this._sendNotification(
+                    _('Service Offline'),
+                    _('"%s" is now offline or degraded.').format(monitor.name)
+                );
+                this._log('info', `Monitor ${monitor.name} (${id}) went offline: ${previousStatus} → ${currentStatus}`);
+            }
+            // Check if status changed from down/degraded to up
+            else if ((previousStatus === 'down' || previousStatus === 'degraded') && currentStatus === 'up') {
+                if (this._config.notifyOnRecovery) {
+                    this._sendNotification(
+                        _('Service Recovered'),
+                        _('"%s" is back online.').format(monitor.name)
+                    );
+                    this._log('info', `Monitor ${monitor.name} (${id}) recovered: ${previousStatus} → ${currentStatus}`);
+                }
+            }
+
+            // Update the stored state
+            this._previousMonitorStates.set(id, currentStatus);
+        }
+    }
+
+    _sendNotification(title, message) {
+        try {
+            Main.notify(title, message);
+        } catch (error) {
+            this._log('error', `Failed to send notification: ${error.message}`);
+        }
     }
 
     // Tooltips not supported in GNOME Shell 46+ for panel buttons
@@ -512,11 +673,11 @@ class KumaIndicator extends PanelMenu.Button {
         // }
 
         // const timeString = this._lastRefresh.format('%H:%M:%S');
-        // const tooltip = _('Uptime Kuma – %(up)d up / %(down)d down (as of %(time)s)').format({
-        //     up: this._summaryState.up,
-        //     down: this._summaryState.down,
-        //     time: timeString,
-        // });
+    // const tooltip = _('Uptime Kuma – %d up / %d down (as of %s)').format(
+    //     this._summaryState.up,
+    //     this._summaryState.down,
+    //     timeString,
+    // );
         // this.set_tooltip_text(tooltip);
     }
 
@@ -543,7 +704,7 @@ class KumaIndicator extends PanelMenu.Button {
 
         const uri = this._config.baseUrl;
         try {
-            Gio.AppInfo.launch_default_for_uri(uri, global.create_app_launch_context());
+            Gio.AppInfo.launch_default_for_uri(uri, global.create_app_launch_context(0, -1, null));
         } catch (error) {
             this._log('error', `Failed to open URL ${uri}: ${error.message}`);
             Main.notify(_('Uptime Kuma Indicator'), _('Failed to open base URL.'));
@@ -572,9 +733,11 @@ class KumaIndicator extends PanelMenu.Button {
 
         const prefix = '[kuma-indicator]';
         if (effectiveLevel === 'error')
-            logError(new Error(`${prefix} ${message}`));
+            console.error(`${prefix} ${message}`);
+        else if (effectiveLevel === 'debug')
+            console.debug(`${prefix} ${message}`);
         else
-            log(`${prefix} [${effectiveLevel}] ${message}`);
+            console.log(`${prefix} [${effectiveLevel}] ${message}`);
     }
 });
 

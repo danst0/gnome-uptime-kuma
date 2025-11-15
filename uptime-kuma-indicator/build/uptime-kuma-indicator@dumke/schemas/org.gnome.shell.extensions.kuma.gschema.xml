@@ -77,11 +77,11 @@
       <summary>Show text in panel</summary>
       <description>Whether to display the status summary text next to the indicator dot in the top bar.</description>
     </key>
-    <key name="show-sparkline" type="b">
-      <default>false</default>
-      <summary>Show history sparklines</summary>
-      <description>Display a 24-hour status sparkline in the panel indicator and monitor list.</description>
-    </key>
+      <key name="show-badges" type="b">
+        <default>true</default>
+        <summary>Show uptime badges</summary>
+        <description>Display the 24-hour uptime badge next to each monitor entry.</description>
+      </key>
     <key name="enable-notifications" type="b">
       <default>true</default>
       <summary>Enable notifications</summary>

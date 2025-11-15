@@ -108,8 +108,9 @@ Access the preferences dialog by clicking the extension icon and selecting the s
 | **API Mode** | Choose your authentication method:<br/>• Status page JSON (public)<br/>• Private API (token)<br/>• Prometheus metrics (API key) |
 | **Status Page Slug** | Slug for public status pages (e.g., `status-main`) |
 | **API Endpoint** | Relative path for REST API (default: `api/monitor`) |
-| **Metrics Endpoint** | Relative path for Prometheus metrics (default: `metrics`) |
 | **API Token/Key** | Securely stored in Secret Service (never in plain text) |
+
+> **Note:** When using metrics mode the endpoint path is always the default `metrics` route to avoid accidental misconfiguration.
 
 ### Display Settings
 
@@ -181,7 +182,7 @@ make build
 ### Connection errors
 - Confirm your Uptime Kuma instance is running and reachable
 - Check firewall settings if connecting to a remote instance
-- For custom deployments, you may need to adjust endpoint paths in settings
+- For custom deployments, adjust status page or REST API endpoints as needed (metrics mode always uses the default path)
 
 ## 🤝 Contributing
 

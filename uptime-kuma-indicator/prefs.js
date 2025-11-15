@@ -68,7 +68,6 @@ class PreferencesBuilder {
             this._buildEntry(_('Status page endpoint template'), 'status-page-endpoint'),
             this._buildEntry(_('Status page JSON URL'), 'status-page-json-url'),
             this._buildEntry(_('API endpoint'), 'api-endpoint'),
-            this._buildEntry(_('Metrics endpoint'), 'metrics-endpoint'),
         ];
         entries.forEach(widget => vbox.append(widget));
 
@@ -76,7 +75,7 @@ class PreferencesBuilder {
     }
 
     _buildConnectionGroup(page) {
-        const group = new Adw.PreferencesGroup({ title: _('Connection'), description: _('Configure how to contact your Uptime Kuma Prometheus metrics endpoint.') });
+        const group = new Adw.PreferencesGroup({ title: _('Connection'), description: _('Configure base URL and token for your Uptime Kuma metrics connection.') });
 
         const baseUrlRow = new Adw.EntryRow({ title: _('Base URL'), text: this._settings.get_string('base-url') });
         baseUrlRow.set_show_apply_button(false);
@@ -86,11 +85,8 @@ class PreferencesBuilder {
         });
         group.add(baseUrlRow);
 
-        const metricsEndpointRow = new Adw.EntryRow({ title: _('Metrics endpoint'), text: this._settings.get_string('metrics-endpoint') });
-        metricsEndpointRow.set_show_apply_button(false);
-        metricsEndpointRow.subtitle = _('Relative path, default: metrics');
-        metricsEndpointRow.connect('notify::text', row => this._settings.set_string('metrics-endpoint', row.text.trim()));
-        group.add(metricsEndpointRow);
+        // Reset metrics endpoint to the schema default so users cannot override it
+        this._settings.reset('metrics-endpoint');
 
         // API Token Entry Row with visibility toggle
         const tokenRow = new Adw.PasswordEntryRow({ 
@@ -626,9 +622,9 @@ class PreferencesBuilder {
         showTextRow.connect('notify::active', row => this._settings.set_boolean('show-text', row.active));
         group.add(showTextRow);
 
-    const sparklineRow = new Adw.SwitchRow({ title: _('Show history sparkline'), subtitle: _('Display a 24-hour status bar next to each monitor.'), active: this._settings.get_boolean('show-sparkline') });
-    sparklineRow.connect('notify::active', row => this._settings.set_boolean('show-sparkline', row.active));
-    group.add(sparklineRow);
+        const showBadgesRow = new Adw.SwitchRow({ title: _('Show uptime badges'), subtitle: _('Display the 24-hour uptime badge next to each monitor entry.'), active: this._settings.get_boolean('show-badges') });
+        showBadgesRow.connect('notify::active', row => this._settings.set_boolean('show-badges', row.active));
+        group.add(showBadgesRow);
 
         const notificationsRow = new Adw.SwitchRow({ title: _('Enable notifications'), subtitle: _('Show desktop notifications when a service goes offline.'), active: this._settings.get_boolean('enable-notifications') });
         
