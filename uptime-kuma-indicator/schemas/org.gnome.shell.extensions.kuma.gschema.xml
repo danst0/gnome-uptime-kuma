@@ -77,11 +77,6 @@
       <summary>Show text in panel</summary>
       <description>Whether to display the status summary text next to the indicator dot in the top bar.</description>
     </key>
-      <key name="show-badges" type="b">
-        <default>true</default>
-        <summary>Show uptime badges</summary>
-        <description>Display the 24-hour uptime badge next to each monitor entry.</description>
-      </key>
     <key name="show-calculated-uptime" type="b">
       <default>false</default>
       <summary>Show calculated uptime percentage</summary>

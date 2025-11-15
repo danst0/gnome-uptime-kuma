@@ -80,7 +80,7 @@ function formatRelative(deltaSeconds) {
 
 const MonitorRow = GObject.registerClass(
 class MonitorRow extends St.BoxLayout {
-    _init(monitor, showLatency, showBadges, showCalculatedUptime, calculatedUptime) {
+    _init(monitor, showLatency, showCalculatedUptime, calculatedUptime) {
         super._init({
             style_class: 'kuma-list-row',
             vertical: false,
@@ -136,14 +136,14 @@ class MonitorRow extends St.BoxLayout {
         this.add_child(this._latency);
         this.add_child(this._uptime);
         this.add_child(this._lastCheck);
-        this.update(monitor, showLatency, showBadges, showCalculatedUptime, calculatedUptime);
+        this.update(monitor, showLatency, showCalculatedUptime, calculatedUptime);
     }
 
     get monitorId() {
         return this._monitorId;
     }
 
-    update(monitor, showLatency, showBadges, showCalculatedUptime, calculatedUptime) {
+    update(monitor, showLatency, showCalculatedUptime, calculatedUptime) {
         this._monitorId = monitor.id;
         this._name.text = monitor.name ?? '—';
         this._setStatusClass(monitor.status);
@@ -161,12 +161,6 @@ class MonitorRow extends St.BoxLayout {
         // Show calculated uptime from history if enabled
         if (showCalculatedUptime && calculatedUptime !== null) {
             const rounded = calculatedUptime >= 100 ? calculatedUptime.toFixed(0) : calculatedUptime.toFixed(2);
-            this._uptime.text = `24h ${rounded}%`;
-            this._uptime.visible = true;
-        } else if (showBadges && typeof monitor.uptime24h === 'number') {
-            // Fallback to badge uptime if available
-            const value = monitor.uptime24h;
-            const rounded = value >= 100 ? value.toFixed(0) : value.toFixed(2);
             this._uptime.text = `24h ${rounded}%`;
             this._uptime.visible = true;
         } else {
@@ -381,7 +375,6 @@ class KumaIndicator extends PanelMenu.Button {
             'demo-mode',
             'selected-services',
             'show-text',
-            'show-badges',
             'enable-notifications',
             'notify-on-recovery',
         ];
@@ -548,9 +541,9 @@ class KumaIndicator extends PanelMenu.Button {
             let row = this._rows.get(id);
             const calculatedUptime = this._config.showCalculatedUptime ? this._calculateUptimeFromHistory(id) : null;
             if (row) {
-                row.update(monitor, this._config.showLatency, this._config.showBadges, this._config.showCalculatedUptime, calculatedUptime);
+                row.update(monitor, this._config.showLatency, this._config.showCalculatedUptime, calculatedUptime);
             } else {
-                row = new MonitorRow(monitor, this._config.showLatency, this._config.showBadges, this._config.showCalculatedUptime, calculatedUptime);
+                row = new MonitorRow(monitor, this._config.showLatency, this._config.showCalculatedUptime, calculatedUptime);
                 this._rows.set(id, row);
             }
 

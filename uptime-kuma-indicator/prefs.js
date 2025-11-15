@@ -622,10 +622,6 @@ class PreferencesBuilder {
         showTextRow.connect('notify::active', row => this._settings.set_boolean('show-text', row.active));
         group.add(showTextRow);
 
-        const showBadgesRow = new Adw.SwitchRow({ title: _('Show uptime badges'), subtitle: _('Display the 24-hour uptime badge next to each monitor entry.'), active: this._settings.get_boolean('show-badges') });
-        showBadgesRow.connect('notify::active', row => this._settings.set_boolean('show-badges', row.active));
-        group.add(showBadgesRow);
-
         const showCalculatedUptimeRow = new Adw.SwitchRow({ title: _('Show calculated uptime percentage'), subtitle: _('Calculate and display uptime percentage from historical data collected over the last 24 hours.'), active: this._settings.get_boolean('show-calculated-uptime') });
         showCalculatedUptimeRow.connect('notify::active', row => this._settings.set_boolean('show-calculated-uptime', row.active));
         group.add(showCalculatedUptimeRow);
