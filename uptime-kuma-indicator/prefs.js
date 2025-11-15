@@ -177,6 +177,9 @@ class PreferencesBuilder {
             enable_search: true,
             search_match_mode: Gtk.StringFilterMatchMode.SUBSTRING
         });
+
+        // Provide expression so built-in search can read strings from Gtk.StringObject
+        dropdown.expression = new Gtk.PropertyExpression(Gtk.StringObject, null, 'string');
         
         // Store the service ID that should be selected
         dropdown._targetServiceId = serviceId;
@@ -488,7 +491,7 @@ class PreferencesBuilder {
             for (let i = 0; i < this._serviceDropdowns.length; i++) {
                 const dropdown = this._serviceDropdowns[i];
                 const model = dropdown.model;
-                
+
                 // Get the service ID that should be selected for this dropdown
                 // Use the stored target service ID
                 const selectedServiceId = dropdown._targetServiceId || null;
