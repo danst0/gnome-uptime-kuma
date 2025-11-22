@@ -4,7 +4,7 @@
 
 ![GNOME Shell Extension](https://img.shields.io/badge/GNOME%20Shell-46%20%7C%2047%20%7C%2048%20%7C%2049-blue?style=flat-square&logo=gnome)
 ![License](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-green?style=flat-square)
-![Version](https://img.shields.io/badge/version-1.3-orange?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.5-orange?style=flat-square)
 
 **Monitor your [Uptime Kuma](https://github.com/louislam/uptime-kuma) services directly from your GNOME desktop.**
 
@@ -38,13 +38,12 @@
 - **🧪 Demo Mode**: Test the UI with mock data before connecting to your instance
 - **🔍 Keyboard-First Search**: Quickly filter monitors inside the dropdown via inline search with substring matching
 
-## 🆕 What's New in 1.3
+## 🆕 What's New in 1.5
 
-- Added a command palette style search box to the monitor selector so you can jump directly to any service without scrolling.
-- Improved substring matching and keyboard navigation inside dropdowns for more forgiving queries.
-- Removed the obsolete badge renderer from the panel to keep the indicator consistent across GNOME Shell 46-49.
+- The indicator now listens to system suspend/resume events and automatically rebuilds its network session, so it reconnects to your Uptime Kuma server as soon as your laptop wakes up—no more manual refreshes after sleep.
+- Added extra logging around wake-up recovery so issues are easier to diagnose if the backend is unreachable.
 
-If you are updating from v1.1, these usability upgrades also include the bug fixes released in v1.2.
+Upgrading from earlier releases still includes the monitor picker and UI refinements introduced in 1.3/1.4.
 
 ## 📦 Requirements
 

@@ -1,8 +1,10 @@
+import Cairo from 'cairo';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
+import Rsvg from 'gi://Rsvg?version=2.0';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -27,11 +29,45 @@ const LOG_LEVELS = ['error', 'info', 'debug'];
 
 const USEC_PER_SEC = 1_000_000;
 const REFRESH_ON_ENABLE_DELAY_MS = 200;
-const UPTIME_HISTORY_CACHE_DIR = GLib.build_filenamev([
-    GLib.get_user_cache_dir() || GLib.get_home_dir() || GLib.get_tmp_dir(),
+const BADGE_CACHE_TTL_MS = 10 * 60 * 1000;
+const BADGE_CACHE_ROOT = GLib.get_user_cache_dir() || GLib.get_home_dir() || GLib.get_tmp_dir();
+const BADGE_CACHE_DIR = GLib.build_filenamev([
+    BADGE_CACHE_ROOT,
     'uptime-kuma-indicator',
+    'badges',
 ]);
-const UPTIME_HISTORY_FILE = GLib.build_filenamev([UPTIME_HISTORY_CACHE_DIR, 'uptime-history.json']);
+const LOGIN1_BUS_NAME = 'org.freedesktop.login1';
+const LOGIN1_OBJECT_PATH = '/org/freedesktop/login1';
+const LOGIN1_INTERFACE = 'org.freedesktop.login1.Manager';
+
+function convertSvgToPng(svgContent, pngPath) {
+    if (typeof svgContent !== 'string' || svgContent.length === 0)
+        throw new Error('SVG content is empty');
+
+    const bytes = new GLib.Bytes(new TextEncoder().encode(svgContent));
+    let handle;
+    try {
+        handle = Rsvg.Handle.new_from_bytes(bytes);
+    } catch (error) {
+        throw new Error(`Failed to parse SVG: ${error.message}`);
+    }
+
+    const { width, height } = handle.get_intrinsic_size_in_pixels();
+    const targetWidth = Math.max(16, Math.round(width || 138));
+    const targetHeight = Math.max(16, Math.round(height || 20));
+
+    const surface = new Cairo.ImageSurface(Cairo.Format.ARGB32, targetWidth, targetHeight);
+    const cr = new Cairo.Context(surface);
+    cr.scale(targetWidth / (width || targetWidth), targetHeight / (height || targetHeight));
+    handle.render_cairo(cr);
+    surface.write_to_png(pngPath);
+}
+
+function hashBadgeKey(key) {
+    if (!key)
+        return 'badge';
+    return GLib.compute_checksum_for_string(GLib.ChecksumType.SHA256, key, key.length);
+}
 
 function toDateTime(value) {
     if (!value)
@@ -80,7 +116,7 @@ function formatRelative(deltaSeconds) {
 
 const MonitorRow = GObject.registerClass(
 class MonitorRow extends St.BoxLayout {
-    _init(monitor, showLatency, showCalculatedUptime, calculatedUptime) {
+    _init(monitor, showLatency, showBadges) {
         super._init({
             style_class: 'kuma-list-row',
             vertical: false,
@@ -109,7 +145,12 @@ class MonitorRow extends St.BoxLayout {
         });
         if (this._name.clutter_text)
             this._name.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-
+        this._badgeIcon = new St.Icon({
+            style_class: 'kuma-badge-icon',
+            icon_size: 16,
+            visible: false,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
         this._latency = new St.Label({
             text: '',
             style_class: 'kuma-monitor-latency',
@@ -133,17 +174,18 @@ class MonitorRow extends St.BoxLayout {
 
         this.add_child(this._dot);
         this.add_child(this._name);
+        this.add_child(this._badgeIcon);
         this.add_child(this._latency);
         this.add_child(this._uptime);
         this.add_child(this._lastCheck);
-        this.update(monitor, showLatency, showCalculatedUptime, calculatedUptime);
+        this.update(monitor, showLatency, showBadges);
     }
 
     get monitorId() {
         return this._monitorId;
     }
 
-    update(monitor, showLatency, showCalculatedUptime, calculatedUptime) {
+    update(monitor, showLatency, showBadges) {
         this._monitorId = monitor.id;
         this._name.text = monitor.name ?? '—';
         this._setStatusClass(monitor.status);
@@ -158,13 +200,31 @@ class MonitorRow extends St.BoxLayout {
             this._latency.visible = false;
         }
 
-        // Show calculated uptime from history if enabled
-        if (showCalculatedUptime && calculatedUptime !== null) {
-            const rounded = calculatedUptime >= 100 ? calculatedUptime.toFixed(0) : calculatedUptime.toFixed(2);
-            this._uptime.text = `24h ${rounded}%`;
-            this._uptime.visible = true;
+        if (showBadges) {
+            const iconPath = monitor.badgeIconPath;
+            const hasIcon = typeof iconPath === 'string' && iconPath.length > 0 && GLib.file_test(iconPath, GLib.FileTest.EXISTS);
+            if (hasIcon) {
+                try {
+                    const file = Gio.File.new_for_path(iconPath);
+                    this._badgeIcon.gicon = new Gio.FileIcon({ file });
+                    this._badgeIcon.visible = true;
+                } catch (error) {
+                    this._badgeIcon.visible = false;
+                }
+                this._uptime.visible = false;
+            } else if (typeof monitor.uptime24h === 'number') {
+                const value = monitor.uptime24h;
+                const rounded = value >= 100 ? value.toFixed(0) : value.toFixed(2);
+                this._uptime.text = `24h ${rounded}%`;
+                this._uptime.visible = true;
+                this._badgeIcon.visible = false;
+            } else {
+                this._uptime.visible = false;
+                this._badgeIcon.visible = false;
+            }
         } else {
             this._uptime.visible = false;
+            this._badgeIcon.visible = false;
         }
 
         if (monitor.relativeLastCheck) {
@@ -248,9 +308,12 @@ class KumaIndicator extends PanelMenu.Button {
         this._lastRefresh = null;
         this._logLevelIndex = 1;
         this._fetcher = new MonitorFetcher();
+        this._sleepSubscriptionId = 0;
         this._previousMonitorStates = new Map(); // Track previous states for notifications
-        this._uptimeHistory = new Map(); // Store 24h uptime history for each monitor: monitorId -> [{timestamp, status, uptime}]
-        this._loadUptimeHistory();
+        this._badgeCache = new Map();
+        this._badgeCacheDir = BADGE_CACHE_DIR;
+        this._ensureBadgeCacheDir();
+        this._backfillBadgeCache();
 
         this._summaryState = {
             up: 0,
@@ -304,6 +367,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._config = {};
         this._loadSettings();
         this._bindSettings();
+        this._subscribePowerEvents();
     }
 
     destroy() {
@@ -347,6 +411,8 @@ class KumaIndicator extends PanelMenu.Button {
             this._fetcher = null;
         }
 
+        this._unsubscribePowerEvents();
+
         for (const id of this._settingsConnections)
             this._settings.disconnect(id);
         this._settingsConnections = [];
@@ -369,12 +435,12 @@ class KumaIndicator extends PanelMenu.Button {
             'api-key',
             'refresh-seconds',
             'show-latency',
-            'show-calculated-uptime',
             'appearance',
             'log-level',
             'demo-mode',
             'selected-services',
             'show-text',
+            'show-badges',
             'enable-notifications',
             'notify-on-recovery',
         ];
@@ -392,7 +458,7 @@ class KumaIndicator extends PanelMenu.Button {
                 else if (key === 'show-text')
                     this._updateTextVisibility();
 
-                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'show-latency', 'show-calculated-uptime', 'selected-services', 'enable-notifications', 'notify-on-recovery'].includes(key))
+                if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'show-latency', 'selected-services', 'enable-notifications', 'notify-on-recovery', 'show-badges'].includes(key))
                     this._refresh();
             });
             this._settingsConnections.push(id);
@@ -409,12 +475,12 @@ class KumaIndicator extends PanelMenu.Button {
     this._config.metricsEndpoint = this._settings.get_string('metrics-endpoint').trim();
         this._config.refreshSeconds = Math.max(10, this._settings.get_int('refresh-seconds'));
         this._config.showLatency = this._settings.get_boolean('show-latency');
-        this._config.showCalculatedUptime = this._settings.get_boolean('show-calculated-uptime');
         this._config.appearance = this._settings.get_string('appearance') || 'normal';
         this._config.logLevel = this._settings.get_string('log-level') || 'info';
         this._config.demoMode = this._settings.get_boolean('demo-mode');
         this._config.selectedServices = this._settings.get_strv('selected-services');
         this._config.showText = this._settings.get_boolean('show-text');
+        this._config.showBadges = this._settings.get_boolean('show-badges');
         this._config.enableNotifications = this._settings.get_boolean('enable-notifications');
         this._config.notifyOnRecovery = this._settings.get_boolean('notify-on-recovery');
 
@@ -422,6 +488,99 @@ class KumaIndicator extends PanelMenu.Button {
         this._updateLogLevel();
         this._updateTextVisibility();
         this._updateOpenItemSensitivity();
+    }
+
+    _ensureBadgeCacheDir() {
+        if (!this._badgeCacheDir)
+            return;
+
+        try {
+            GLib.mkdir_with_parents(this._badgeCacheDir, 0o755);
+        } catch (error) {
+            this._log('debug', `Unable to ensure badge cache directory: ${error.message}`);
+        }
+    }
+
+    _backfillBadgeCache() {
+        if (!this._badgeCacheDir || !GLib.file_test(this._badgeCacheDir, GLib.FileTest.IS_DIR))
+            return;
+
+        let enumerator = null;
+        try {
+            const directory = Gio.File.new_for_path(this._badgeCacheDir);
+            enumerator = directory.enumerate_children('standard::name,standard::type', Gio.FileQueryInfoFlags.NONE, null);
+            let info;
+            while ((info = enumerator.next_file(null))) {
+                const name = info.get_name();
+                if (!name || !name.endsWith('.svg'))
+                    continue;
+
+                const baseName = name.slice(0, -4);
+                const pngPath = GLib.build_filenamev([this._badgeCacheDir, `${baseName}.png`]);
+                if (GLib.file_test(pngPath, GLib.FileTest.EXISTS))
+                    continue;
+
+                const svgPath = GLib.build_filenamev([this._badgeCacheDir, name]);
+                const [ok, contents] = GLib.file_get_contents(svgPath);
+                if (!ok || !contents)
+                    continue;
+
+                try {
+                    const svgText = new TextDecoder().decode(contents);
+                    convertSvgToPng(svgText, pngPath);
+                } catch (error) {
+                    this._log('debug', `Failed to backfill badge ${baseName}: ${error.message}`);
+                }
+            }
+        } catch (error) {
+            this._log('debug', `Badge cache enumeration failed: ${error.message}`);
+        } finally {
+            if (enumerator)
+                enumerator.close(null);
+        }
+    }
+
+    _getBadgeFileBase(cacheKey) {
+        this._ensureBadgeCacheDir();
+        const safeKey = hashBadgeKey(cacheKey ?? 'badge');
+        return GLib.build_filenamev([this._badgeCacheDir, safeKey]);
+    }
+
+    _storeBadgeAssets(cacheKey, svgContent) {
+        if (typeof svgContent !== 'string' || svgContent.length === 0)
+            return { svgPath: null, pngPath: null };
+
+        const basePath = this._getBadgeFileBase(cacheKey);
+        const svgPath = `${basePath}.svg`;
+        const pngPath = `${basePath}.png`;
+
+        const success = GLib.file_set_contents(svgPath, svgContent);
+        if (!success)
+            throw new Error('Failed to persist badge SVG');
+        convertSvgToPng(svgContent, pngPath);
+
+        return { svgPath, pngPath };
+    }
+
+    _restoreBadgeIcon(cacheKey) {
+        try {
+            const basePath = this._getBadgeFileBase(cacheKey);
+            const svgPath = `${basePath}.svg`;
+            const pngPath = `${basePath}.png`;
+            if (!GLib.file_test(svgPath, GLib.FileTest.EXISTS))
+                return null;
+
+            const [ok, contents] = GLib.file_get_contents(svgPath);
+            if (!ok || !contents)
+                return null;
+
+            const svgText = new TextDecoder().decode(contents);
+            convertSvgToPng(svgText, pngPath);
+            return pngPath;
+        } catch (error) {
+            this._log('debug', `Failed to rebuild badge PNG (${cacheKey}): ${error.message}`);
+            return null;
+        }
     }
 
     _applyAppearance() {
@@ -451,6 +610,75 @@ class KumaIndicator extends PanelMenu.Button {
             this._refresh();
             return GLib.SOURCE_CONTINUE;
         });
+    }
+
+    _subscribePowerEvents() {
+        if (this._sleepSubscriptionId)
+            return;
+
+        try {
+            this._sleepSubscriptionId = Gio.DBus.system.signal_subscribe(
+                LOGIN1_BUS_NAME,
+                LOGIN1_INTERFACE,
+                'PrepareForSleep',
+                LOGIN1_OBJECT_PATH,
+                null,
+                Gio.DBusSignalFlags.NONE,
+                this._onPrepareForSleep.bind(this)
+            );
+        } catch (error) {
+            this._sleepSubscriptionId = 0;
+            this._log('debug', `Failed to subscribe to sleep events: ${error.message}`);
+        }
+    }
+
+    _unsubscribePowerEvents() {
+        if (!this._sleepSubscriptionId)
+            return;
+
+        Gio.DBus.system.signal_unsubscribe(this._sleepSubscriptionId);
+        this._sleepSubscriptionId = 0;
+    }
+
+    _onPrepareForSleep(connection, senderName, objectPath, interfaceName, signalName, parameters) {
+        let goingToSleep = true;
+
+        try {
+            const unpacked = parameters?.deep_unpack?.();
+            if (Array.isArray(unpacked) && unpacked.length > 0)
+                goingToSleep = Boolean(unpacked[0]);
+        } catch (error) {
+            this._log('debug', `Failed to decode sleep signal: ${error.message}`);
+        }
+
+        if (goingToSleep) {
+            this._log('debug', 'System preparing for sleep – aborting in-flight refresh');
+            this._abortInFlightRefresh();
+            return;
+        }
+
+        this._log('info', 'System resumed from sleep – resetting network session');
+        this._resetFetcher();
+        this._refresh();
+    }
+
+    _abortInFlightRefresh() {
+        if (!this._isRefreshing)
+            return;
+
+        this._isRefreshing = false;
+        this._resetFetcher();
+
+        if (this._refreshItem && this._refreshItem.actor) {
+            this._refreshItem.actor.reactive = true;
+            this._refreshItem.actor.opacity = 255;
+        }
+    }
+
+    _resetFetcher() {
+        if (this._fetcher)
+            this._fetcher.destroy();
+        this._fetcher = new MonitorFetcher();
     }
 
     async _refresh() {
@@ -489,8 +717,8 @@ class KumaIndicator extends PanelMenu.Button {
                 this._log('debug', `Filtered to ${monitors.length} selected services`);
             }
 
+            await this._populateUptimeBadges(monitors);
             this._updateMonitorList(monitors);
-            this._storeUptimeHistory(monitors);
             this._checkForStatusChanges(monitors);
             this._updateSummary(monitors);
             // Tooltips not supported in GNOME Shell 46+ for panel buttons
@@ -539,11 +767,10 @@ class KumaIndicator extends PanelMenu.Button {
             seen.add(id);
 
             let row = this._rows.get(id);
-            const calculatedUptime = this._config.showCalculatedUptime ? this._calculateUptimeFromHistory(id) : null;
             if (row) {
-                row.update(monitor, this._config.showLatency, this._config.showCalculatedUptime, calculatedUptime);
+                row.update(monitor, this._config.showLatency, this._config.showBadges);
             } else {
-                row = new MonitorRow(monitor, this._config.showLatency, this._config.showCalculatedUptime, calculatedUptime);
+                row = new MonitorRow(monitor, this._config.showLatency, this._config.showBadges);
                 this._rows.set(id, row);
             }
 
@@ -562,134 +789,84 @@ class KumaIndicator extends PanelMenu.Button {
         }
     }
 
-    _storeUptimeHistory(monitors) {
+    async _populateUptimeBadges(monitors) {
         if (!Array.isArray(monitors) || monitors.length === 0)
             return;
 
+        if (!this._config.showBadges) {
+            for (const monitor of monitors) {
+                if (monitor) {
+                    monitor.uptime24h = null;
+                    monitor.badgeIconPath = null;
+                }
+            }
+            return;
+        }
+
+        if (!this._config.baseUrl) {
+            for (const monitor of monitors) {
+                if (monitor) {
+                    if (typeof monitor?.uptime24h !== 'number')
+                        monitor.uptime24h = null;
+                    monitor.badgeIconPath = null;
+                }
+            }
+            return;
+        }
+
         const now = Date.now();
-        const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
-
-        for (const monitor of monitors) {
-            const id = monitor.id;
-            if (!id)
-                continue;
-
-            // Get or create history array for this monitor
-            let history = this._uptimeHistory.get(id);
-            if (!history) {
-                history = [];
-                this._uptimeHistory.set(id, history);
-            }
-
-            // Add current data point
-            const dataPoint = {
-                timestamp: now,
-                status: monitor.status || 'unknown',
-                uptime: typeof monitor.uptime24h === 'number' ? monitor.uptime24h : null,
-                latencyMs: typeof monitor.latencyMs === 'number' ? monitor.latencyMs : null,
-            };
-            history.push(dataPoint);
-
-            // Remove data points older than 24 hours
-            const filtered = history.filter(point => point.timestamp >= twentyFourHoursAgo);
-            this._uptimeHistory.set(id, filtered);
-
-            this._log('debug', `Stored uptime history for ${id}: ${filtered.length} data points`);
-        }
-
-        // Clean up history for monitors that no longer exist
-        const currentMonitorIds = new Set(monitors.map(m => m.id).filter(id => id));
-        for (const [id, _] of this._uptimeHistory.entries()) {
-            if (!currentMonitorIds.has(id)) {
-                this._uptimeHistory.delete(id);
-                this._log('debug', `Removed history for deleted monitor ${id}`);
-            }
-        }
-
-        // Persist to disk
-        this._saveUptimeHistory();
-    }
-
-    _calculateUptimeFromHistory(monitorId) {
-        const history = this._uptimeHistory.get(monitorId);
-        if (!history || history.length === 0)
-            return null;
-
-        // Count data points where status is 'up'
-        const upCount = history.filter(point => point.status === 'up').length;
-        const totalCount = history.length;
-
-        if (totalCount === 0)
-            return null;
-
-        // Calculate percentage
-        const percentage = (upCount / totalCount) * 100;
-        return percentage;
-    }
-
-    _loadUptimeHistory() {
-        try {
-            if (!GLib.file_test(UPTIME_HISTORY_FILE, GLib.FileTest.EXISTS)) {
-                this._log('debug', 'No uptime history file found');
+        const tasks = monitors.map(async monitor => {
+            const rawId = monitor?.id;
+            if (rawId === undefined || rawId === null)
                 return;
-            }
 
-            const [ok, contents] = GLib.file_get_contents(UPTIME_HISTORY_FILE);
-            if (!ok || !contents) {
-                this._log('debug', 'Failed to read uptime history file');
-                return;
-            }
+            const cacheKey = `${String(rawId)}-uptime-24h`;
+            const cached = this._badgeCache.get(cacheKey);
+            if (cached && (now - cached.timestamp) < BADGE_CACHE_TTL_MS) {
+                monitor.uptime24h = (typeof cached.value === 'number') ? cached.value : null;
+                let iconPath = cached.pngPath;
+                const iconValid = iconPath && GLib.file_test(iconPath, GLib.FileTest.EXISTS);
+                if (!iconValid)
+                    iconPath = this._restoreBadgeIcon(cacheKey);
 
-            const json = new TextDecoder().decode(contents);
-            const data = JSON.parse(json);
-            
-            if (!data || typeof data !== 'object') {
-                this._log('debug', 'Invalid uptime history data');
-                return;
-            }
-
-            // Restore history from JSON object to Map
-            const now = Date.now();
-            const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
-            
-            for (const [id, history] of Object.entries(data)) {
-                if (Array.isArray(history)) {
-                    // Filter out old entries while loading
-                    const filtered = history.filter(point => point.timestamp >= twentyFourHoursAgo);
-                    if (filtered.length > 0) {
-                        this._uptimeHistory.set(id, filtered);
-                    }
+                if (iconPath) {
+                    monitor.badgeIconPath = iconPath;
+                    this._badgeCache.set(cacheKey, {
+                        value: monitor.uptime24h,
+                        pngPath: iconPath,
+                        timestamp: cached.timestamp,
+                    });
+                    return;
                 }
             }
 
-            this._log('info', `Loaded uptime history for ${this._uptimeHistory.size} monitors`);
-        } catch (error) {
-            this._log('error', `Failed to load uptime history: ${error.message}`);
-        }
-    }
+            try {
+                const payload = await this._fetcher.fetchUptimeBadge(rawId, this._config, {
+                    log: (level, message) => this._log(level, message),
+                });
+                const percentage = (typeof payload?.percentage === 'number') ? payload.percentage : null;
+                const svgContent = typeof payload?.svg === 'string' ? payload.svg : null;
+                let pngPath = null;
+                if (svgContent) {
+                    const files = this._storeBadgeAssets(cacheKey, svgContent);
+                    pngPath = files.pngPath;
+                }
 
-    _saveUptimeHistory() {
-        try {
-            // Ensure cache directory exists
-            GLib.mkdir_with_parents(UPTIME_HISTORY_CACHE_DIR, 0o755);
-
-            // Convert Map to plain object for JSON serialization
-            const data = {};
-            for (const [id, history] of this._uptimeHistory.entries()) {
-                data[id] = history;
+                monitor.uptime24h = percentage;
+                monitor.badgeIconPath = pngPath;
+                this._badgeCache.set(cacheKey, {
+                    value: monitor.uptime24h,
+                    pngPath,
+                    timestamp: Date.now(),
+                });
+            } catch (error) {
+                this._log('debug', `Failed to fetch uptime badge for ${cacheKey}: ${error.message}`);
+                monitor.uptime24h = null;
+                monitor.badgeIconPath = null;
             }
+        });
 
-            const json = JSON.stringify(data, null, 2);
-            const success = GLib.file_set_contents(UPTIME_HISTORY_FILE, json);
-            
-            if (!success) {
-                this._log('error', 'Failed to write uptime history file');
-            } else {
-                this._log('debug', `Saved uptime history for ${this._uptimeHistory.size} monitors`);
-            }
-        } catch (error) {
-            this._log('error', `Failed to save uptime history: ${error.message}`);
-        }
+        await Promise.all(tasks);
     }
 
     _updateSummary(monitors) {
