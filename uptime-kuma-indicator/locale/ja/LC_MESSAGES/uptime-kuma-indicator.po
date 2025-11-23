@@ -7,8 +7,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Uptime Kuma Indicator 1.0\n"
-"Report-Msgid-Bugs-To: https://github.com/danst0/gnome-uptime-kuma\n"
-"POT-Creation-Date: 2025-11-02 14:21+0100\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-23 07:20+0100\n"
 "PO-Revision-Date: 2025-11-03 00:00+0100\n"
 "Last-Translator: Daniel Dumke <uptime.kuma.extension.daniel@dumke.me>\n"
 "Language-Team: none\n"
@@ -18,351 +18,396 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: extension.js:58
+#: uptime-kuma-indicator/utils/parsers.js:160
+msgid "Unnamed monitor"
+msgstr "名称未設定のモニター"
+
+#: uptime-kuma-indicator/utils/parsers.js:309
+msgid "Certificate invalid"
+msgstr "証明書が無効です"
+
+#: uptime-kuma-indicator/utils/parsers.js:314
+#, javascript-format
+msgid "Certificate expired %d days ago"
+msgstr "証明書は %d 日前に失効しました"
+
+#: uptime-kuma-indicator/utils/parsers.js:406
+msgid "Frontend"
+msgstr "フロントエンド"
+
+#: uptime-kuma-indicator/utils/parsers.js:413
+msgid "API Gateway"
+msgstr "API ゲートウェイ"
+
+#: uptime-kuma-indicator/utils/parsers.js:417
+msgid "Slight latency increase detected"
+msgstr "レイテンシの軽微な増加を検出"
+
+#: uptime-kuma-indicator/utils/parsers.js:421
+msgid "Database"
+msgstr "データベース"
+
+#: uptime-kuma-indicator/utils/parsers.js:424
+msgid "No heartbeat received"
+msgstr "ハートビートを受信していません"
+
+#: uptime-kuma-indicator/utils/parsers.js:428
+msgid "Background Jobs"
+msgstr "バックグラウンドジョブ"
+
+#: uptime-kuma-indicator/utils/parsers.js:435
+msgid "External Ping"
+msgstr "外部 Ping"
+
+#: uptime-kuma-indicator/utils/network.js:104
+#: uptime-kuma-indicator/utils/network.js:128
+#: uptime-kuma-indicator/utils/network.js:148
+#: uptime-kuma-indicator/utils/network.js:172
+msgid "Base URL is missing."
+msgstr "ベース URL が未設定です。"
+
+#: uptime-kuma-indicator/utils/network.js:153
+#: uptime-kuma-indicator/utils/network.js:177
+msgid "API token is not available."
+msgstr "API トークンが利用できません。"
+
+#: uptime-kuma-indicator/utils/network.js:330
+msgid "Unknown network error"
+msgstr "不明なネットワークエラー"
+
+#: uptime-kuma-indicator/prefs.js:58
+msgid "GTK-only fallback – consider installing libadwaita."
+msgstr "GTK のみのフォールバックです。libadwaita の導入をご検討ください。"
+
+#: uptime-kuma-indicator/prefs.js:66 uptime-kuma-indicator/prefs.js:80
+msgid "Base URL"
+msgstr "ベース URL"
+
+#: uptime-kuma-indicator/prefs.js:67
+msgid "Status page slug"
+msgstr "ステータスページのスラッグ"
+
+#: uptime-kuma-indicator/prefs.js:68
+msgid "Status page endpoint template"
+msgstr "ステータスページのエンドポイントテンプレート"
+
+#: uptime-kuma-indicator/prefs.js:69
+msgid "Status page JSON URL"
+msgstr "ステータスページの JSON URL"
+
+#: uptime-kuma-indicator/prefs.js:70
+msgid "API endpoint"
+msgstr "API エンドポイント"
+
+#: uptime-kuma-indicator/prefs.js:78
+msgid "Connection"
+msgstr "接続"
+
+#: uptime-kuma-indicator/prefs.js:78
+#, fuzzy
+msgid "Configure base URL and token for your Uptime Kuma metrics connection."
+msgstr ""
+"Uptime Kuma の Prometheus メトリクス エンドポイントへの接続方法を設定します。"
+
+#: uptime-kuma-indicator/prefs.js:93
+msgid "API token"
+msgstr "API トークン"
+
+#: uptime-kuma-indicator/prefs.js:112
+msgid "Service Selection"
+msgstr "サービス選択"
+
+#: uptime-kuma-indicator/prefs.js:113
+#, fuzzy
+msgid ""
+"Select up to 10 specific services to monitor. Leave empty to monitor all "
+"services."
+msgstr ""
+"監視するサービスを最大 4 件まで選択します。空欄のままにすると全サービスを監視"
+"します。"
+
+#: uptime-kuma-indicator/prefs.js:121
+#, fuzzy
+msgid "Add Service"
+msgstr "サービス"
+
+#: uptime-kuma-indicator/prefs.js:122
+#, fuzzy
+msgid "Add another service to monitor"
+msgstr "監視するサービスを選択"
+
+#: uptime-kuma-indicator/prefs.js:128
+#, fuzzy
+msgid "Add service"
+msgstr "サービス"
+
+#: uptime-kuma-indicator/prefs.js:164 uptime-kuma-indicator/prefs.js:271
+msgid "Service"
+msgstr "サービス"
+
+#: uptime-kuma-indicator/prefs.js:165
+msgid "Select a service to monitor"
+msgstr "監視するサービスを選択"
+
+#: uptime-kuma-indicator/prefs.js:184
+msgid "(None)"
+msgstr "（なし）"
+
+#: uptime-kuma-indicator/prefs.js:202
+msgid "not loaded yet"
+msgstr "まだ読み込まれていません"
+
+#: uptime-kuma-indicator/prefs.js:212
+msgid "Remove service"
+msgstr "サービスを削除"
+
+#: uptime-kuma-indicator/prefs.js:252
+msgid "Maximum of 10 services reached"
+msgstr "最大 10 件のサービスに達しました"
+
+#: uptime-kuma-indicator/prefs.js:296
+msgid "Please configure Base URL first."
+msgstr "先にベース URL を設定してください。"
+
+#: uptime-kuma-indicator/prefs.js:306 uptime-kuma-indicator/prefs.js:315
+msgid "Please configure API token first."
+msgstr "先に API トークンを設定してください。"
+
+#: uptime-kuma-indicator/prefs.js:333
+msgid "Failed to fetch services"
+msgstr "サービスの取得に失敗しました"
+
+#: uptime-kuma-indicator/prefs.js:611
+msgid "Behaviour"
+msgstr "動作"
+
+#: uptime-kuma-indicator/prefs.js:613
+msgid "Refresh interval (seconds)"
+msgstr "更新間隔（秒）"
+
+#: uptime-kuma-indicator/prefs.js:613
+msgid "Minimum 10 seconds."
+msgstr "最小 10 秒。"
+
+#: uptime-kuma-indicator/prefs.js:617
+msgid "Show latency"
+msgstr "レイテンシを表示"
+
+#: uptime-kuma-indicator/prefs.js:617
+msgid "Displays ping measurements when available."
+msgstr "利用可能な場合は ping の測定値を表示します。"
+
+#: uptime-kuma-indicator/prefs.js:621
+msgid "Show text in panel"
+msgstr "パネルにテキストを表示"
+
+#: uptime-kuma-indicator/prefs.js:621
+msgid "Display status summary next to the indicator dot."
+msgstr "インジケータードットの横にステータス概要を表示します。"
+
+#: uptime-kuma-indicator/prefs.js:625
+msgid "Show uptime badges"
+msgstr "稼働バッジを表示"
+
+#: uptime-kuma-indicator/prefs.js:625
+msgid "Display the 24-hour uptime badge next to each monitor entry."
+msgstr "各モニターの項目の横に24時間の稼働バッジを表示します。"
+
+#: uptime-kuma-indicator/prefs.js:629
+msgid "Enable notifications"
+msgstr "通知を有効にする"
+
+#: uptime-kuma-indicator/prefs.js:629
+msgid "Show desktop notifications when a service goes offline."
+msgstr "サービスがオフラインになったときにデスクトップ通知を表示します。"
+
+#: uptime-kuma-indicator/prefs.js:631
+msgid "Notify on recovery"
+msgstr "復旧時に通知"
+
+#: uptime-kuma-indicator/prefs.js:631
+msgid "Show desktop notifications when a service comes back online."
+msgstr "サービスがオンラインに戻ったときにデスクトップ通知を表示します。"
+
+#: uptime-kuma-indicator/prefs.js:646
+msgid "Enable demo data"
+msgstr "デモデータを有効にする"
+
+#: uptime-kuma-indicator/prefs.js:646
+msgid "Use mock monitors when no base URL is configured."
+msgstr "ベース URL が未設定の場合、モックモニターを使用します。"
+
+#: uptime-kuma-indicator/prefs.js:650
+msgid "Appearance"
+msgstr "外観"
+
+#: uptime-kuma-indicator/prefs.js:652
+msgid "Normal"
+msgstr "標準"
+
+#: uptime-kuma-indicator/prefs.js:653
+msgid "Compact"
+msgstr "コンパクト"
+
+#: uptime-kuma-indicator/prefs.js:663
+msgid "Log level"
+msgstr "ログレベル"
+
+#: uptime-kuma-indicator/prefs.js:665
+msgid "Errors only"
+msgstr "エラーのみ"
+
+#: uptime-kuma-indicator/prefs.js:666
+msgid "Informational"
+msgstr "情報"
+
+#: uptime-kuma-indicator/prefs.js:667
+msgid "Debug"
+msgstr "デバッグ"
+
+#: uptime-kuma-indicator/prefs.js:681
+msgid "About"
+msgstr "情報"
+
+#: uptime-kuma-indicator/prefs.js:686
+msgid "Version"
+msgstr "バージョン"
+
+#: uptime-kuma-indicator/prefs.js:694
+msgid "Author"
+msgstr "作成者"
+
+#: uptime-kuma-indicator/prefs.js:702
+msgid "GitHub"
+msgstr "GitHub"
+
+#: uptime-kuma-indicator/prefs.js:709
+msgid "Open on GitHub"
+msgstr "GitHub で開く"
+
+#: uptime-kuma-indicator/prefs.js:721
+msgid "Documentation"
+msgstr "ドキュメント"
+
+#: uptime-kuma-indicator/prefs.js:722
+msgid "Check the README for configuration examples."
+msgstr "設定例は README を参照してください。"
+
+#: uptime-kuma-indicator/extension.js:99
 #, javascript-format
 msgid "%d second ago"
 msgid_plural "%d seconds ago"
 msgstr[0] "%d 秒前"
 
-#: extension.js:62
+#: uptime-kuma-indicator/extension.js:103
 #, javascript-format
 msgid "%d minute ago"
 msgid_plural "%d minutes ago"
 msgstr[0] "%d 分前"
 
-#: extension.js:66
+#: uptime-kuma-indicator/extension.js:107
 #, javascript-format
 msgid "%d hour ago"
 msgid_plural "%d hours ago"
 msgstr[0] "%d 時間前"
 
-#: extension.js:70
+#: uptime-kuma-indicator/extension.js:111
 #, javascript-format
 msgid "%d day ago"
 msgid_plural "%d days ago"
 msgstr[0] "%d 日前"
 
-#: extension.js:73
+#: uptime-kuma-indicator/extension.js:114
 #, javascript-format
 msgid "%d week ago"
 msgid_plural "%d weeks ago"
 msgstr[0] "%d 週間前"
 
-#: extension.js:146
+#: uptime-kuma-indicator/extension.js:197
 msgid "n/a"
 msgstr "該当なし"
 
-#: extension.js:259
+#: uptime-kuma-indicator/extension.js:344
 msgid "—/—"
 msgstr "—/—"
 
-#: extension.js:275
+#: uptime-kuma-indicator/extension.js:360
 msgid "Refresh now"
 msgstr "今すぐ更新"
 
-#: extension.js:278
+#: uptime-kuma-indicator/extension.js:363
 msgid "Open Uptime Kuma"
 msgstr "Uptime Kuma を開く"
 
-#: extension.js:279
+#: uptime-kuma-indicator/extension.js:364
 msgid "Preferences…"
 msgstr "設定…"
 
-#: extension.js:280
+#: uptime-kuma-indicator/extension.js:365
 msgid "About / Version"
 msgstr "情報 / バージョン"
 
-#: extension.js:486
+#: uptime-kuma-indicator/extension.js:745
 msgid "Error"
 msgstr "エラー"
 
-#: extension.js:538
+#: uptime-kuma-indicator/extension.js:877
 #, javascript-format
 msgid "%d up / %d down"
 msgstr "%d 稼働 / %d 停止"
 
-#: extension.js:553
+#: uptime-kuma-indicator/extension.js:900
 msgid "Service Offline"
 msgstr "サービス停止"
 
-#: extension.js:554
+#: uptime-kuma-indicator/extension.js:901
 #, javascript-format
 msgid "\"%s\" is now offline or degraded."
 msgstr "「%s」は現在オフラインまたは劣化しています。"
 
-#: extension.js:560
+#: uptime-kuma-indicator/extension.js:909
 msgid "Service Recovered"
 msgstr "サービス復旧"
 
-#: extension.js:561
+#: uptime-kuma-indicator/extension.js:910
 #, javascript-format
 msgid "\"%s\" is back online."
 msgstr "「%s」はオンラインに戻りました。"
 
-#: extension.js:586 extension.js:592
+#: uptime-kuma-indicator/extension.js:972
+#: uptime-kuma-indicator/extension.js:978
 msgid "Uptime Kuma Indicator"
 msgstr "Uptime Kuma インジケーター"
 
-#: extension.js:586
+#: uptime-kuma-indicator/extension.js:972
 msgid "Failed to open base URL."
 msgstr "ベース URL を開けませんでした。"
 
-#: extension.js:592
+#: uptime-kuma-indicator/extension.js:978
 #, javascript-format
 msgid "Version %s"
 msgstr "バージョン %s"
 
-#: prefs.js:54
-msgid "GTK-only fallback – consider installing libadwaita."
-msgstr "GTK のみのフォールバックです。libadwaita の導入をご検討ください。"
+#~ msgid "Metrics endpoint"
+#~ msgstr "メトリクス エンドポイント"
 
-#: prefs.js:62 prefs.js:77
-msgid "Base URL"
-msgstr "ベース URL"
+#~ msgid "Relative path, default: metrics"
+#~ msgstr "相対パス（既定: metrics）"
 
-#: prefs.js:63
-msgid "Status page slug"
-msgstr "ステータスページのスラッグ"
+#~ msgid "Fetch Services"
+#~ msgstr "サービスを取得"
 
-#: prefs.js:64
-msgid "Status page endpoint template"
-msgstr "ステータスページのエンドポイントテンプレート"
+#~ msgid "Load available services from your Uptime Kuma instance."
+#~ msgstr "Uptime Kuma インスタンスから利用可能なサービスを読み込みます。"
 
-#: prefs.js:65
-msgid "Status page JSON URL"
-msgstr "ステータスページの JSON URL"
+#~ msgid "Fetch"
+#~ msgstr "取得"
 
-#: prefs.js:66
-msgid "API endpoint"
-msgstr "API エンドポイント"
+#~ msgid "Fetching..."
+#~ msgstr "取得中…"
 
-#: prefs.js:67 prefs.js:82
-msgid "Metrics endpoint"
-msgstr "メトリクス エンドポイント"
+#~ msgid "Maximum monitors to display"
+#~ msgstr "表示するモニターの最大数"
 
-#: prefs.js:75
-msgid "Connection"
-msgstr "接続"
-
-#: prefs.js:75
-msgid "Configure how to contact your Uptime Kuma Prometheus metrics endpoint."
-msgstr "Uptime Kuma の Prometheus メトリクス エンドポイントへの接続方法を設定します。"
-
-#: prefs.js:84
-msgid "Relative path, default: metrics"
-msgstr "相対パス（既定: metrics）"
-
-#: prefs.js:90
-msgid "API token"
-msgstr "API トークン"
-
-#: prefs.js:108
-msgid "Service Selection"
-msgstr "サービス選択"
-
-#: prefs.js:109
-msgid ""
-"Select up to 4 specific services to monitor. Leave empty to monitor all "
-"services."
-msgstr "監視するサービスを最大 4 件まで選択します。空欄のままにすると全サービスを監視します。"
-
-#: prefs.js:114
-msgid "Fetch Services"
-msgstr "サービスを取得"
-
-#: prefs.js:115
-msgid "Load available services from your Uptime Kuma instance."
-msgstr "Uptime Kuma インスタンスから利用可能なサービスを読み込みます。"
-
-#: prefs.js:118 prefs.js:213
-msgid "Fetch"
-msgstr "取得"
-
-#: prefs.js:132
-msgid "Service"
-msgstr "サービス"
-
-#: prefs.js:133
-msgid "Select a service to monitor"
-msgstr "監視するサービスを選択"
-
-#: prefs.js:142
-msgid "(None)"
-msgstr "（なし）"
-
-#: prefs.js:165
-msgid "Fetching..."
-msgstr "取得中…"
-
-#: prefs.js:172
-msgid "Please configure Base URL first."
-msgstr "先にベース URL を設定してください。"
-
-#: prefs.js:182 prefs.js:191
-msgid "Please configure API token first."
-msgstr "先に API トークンを設定してください。"
-
-#: prefs.js:209
-msgid "Failed to fetch services"
-msgstr "サービスの取得に失敗しました"
-
-#: prefs.js:428
-msgid "Behaviour"
-msgstr "動作"
-
-#: prefs.js:430
-msgid "Refresh interval (seconds)"
-msgstr "更新間隔（秒）"
-
-#: prefs.js:430
-msgid "Minimum 10 seconds."
-msgstr "最小 10 秒。"
-
-#: prefs.js:434
-msgid "Maximum monitors to display"
-msgstr "表示するモニターの最大数"
-
-#: prefs.js:438
-msgid "Show latency"
-msgstr "レイテンシを表示"
-
-#: prefs.js:438
-msgid "Displays ping measurements when available."
-msgstr "利用可能な場合は ping の測定値を表示します。"
-
-#: prefs.js:442
-msgid "Show text in panel"
-msgstr "パネルにテキストを表示"
-
-#: prefs.js:442
-msgid "Display status summary next to the indicator dot."
-msgstr "インジケータードットの横にステータス概要を表示します。"
-
-#: prefs.js:446
-msgid "Show uptime badges"
-msgstr "稼働バッジを表示"
-
-#: prefs.js:446
-msgid "Display the 24-hour uptime badge next to each monitor entry."
-msgstr "各モニターの項目の横に24時間の稼働バッジを表示します。"
-
-#: prefs.js:446
-msgid "Enable notifications"
-msgstr "通知を有効にする"
-
-#: prefs.js:446
-msgid "Show desktop notifications when a service goes offline."
-msgstr "サービスがオフラインになったときにデスクトップ通知を表示します。"
-
-#: prefs.js:450
-msgid "Notify on recovery"
-msgstr "復旧時に通知"
-
-#: prefs.js:450
-msgid "Show desktop notifications when a service comes back online."
-msgstr "サービスがオンラインに戻ったときにデスクトップ通知を表示します。"
-
-#: prefs.js:454
-msgid "Enable demo data"
-msgstr "デモデータを有効にする"
-
-#: prefs.js:454
-msgid "Use mock monitors when no base URL is configured."
-msgstr "ベース URL が未設定の場合、モックモニターを使用します。"
-
-#: prefs.js:458
-msgid "Appearance"
-msgstr "外観"
-
-#: prefs.js:452
-msgid "Normal"
-msgstr "標準"
-
-#: prefs.js:453
-msgid "Compact"
-msgstr "コンパクト"
-
-#: prefs.js:463
-msgid "Log level"
-msgstr "ログレベル"
-
-#: prefs.js:465
-msgid "Errors only"
-msgstr "エラーのみ"
-
-#: prefs.js:466
-msgid "Informational"
-msgstr "情報"
-
-#: prefs.js:467
-msgid "Debug"
-msgstr "デバッグ"
-
-#: prefs.js:481
-msgid "About"
-msgstr "情報"
-
-#: prefs.js:482
-msgid "Version"
-msgstr "バージョン"
-
-#: prefs.js:486
-msgid "Need help?"
-msgstr "お困りですか？"
-
-#: prefs.js:486
-msgid "Check the README for configuration examples."
-msgstr "設定例は README を参照してください。"
-
-#: utils/network.js:90 utils/network.js:110 utils/network.js:134
-msgid "Base URL is missing."
-msgstr "ベース URL が未設定です。"
-
-#: utils/network.js:115 utils/network.js:139
-msgid "API token is not available."
-msgstr "API トークンが利用できません。"
-
-#: utils/network.js:220
-msgid "Unknown network error"
-msgstr "不明なネットワークエラー"
-
-#: utils/parsers.js:86
-msgid "Unnamed monitor"
-msgstr "名称未設定のモニター"
-
-#: utils/parsers.js:205
-msgid "Certificate invalid"
-msgstr "証明書が無効です"
-
-#: utils/parsers.js:210
-#, javascript-format
-msgid "Certificate expired %d days ago"
-msgstr "証明書は %d 日前に失効しました"
-
-#: utils/parsers.js:280
-msgid "Frontend"
-msgstr "フロントエンド"
-
-#: utils/parsers.js:281
-msgid "API Gateway"
-msgstr "API ゲートウェイ"
-
-#: utils/parsers.js:281
-msgid "Slight latency increase detected"
-msgstr "レイテンシの軽微な増加を検出"
-
-#: utils/parsers.js:282
-msgid "Database"
-msgstr "データベース"
-
-#: utils/parsers.js:282
-msgid "No heartbeat received"
-msgstr "ハートビートを受信していません"
-
-#: utils/parsers.js:283
-msgid "Background Jobs"
-msgstr "バックグラウンドジョブ"
-
-#: utils/parsers.js:284
-msgid "External Ping"
-msgstr "外部 Ping"
+#~ msgid "Need help?"
+#~ msgstr "お困りですか？"

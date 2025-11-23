@@ -681,7 +681,7 @@ class PreferencesBuilder {
         const group = new Adw.PreferencesGroup({ title: _('About') });
         
         // Version
-        const version = this._metadata['version-name'] || this._metadata.version || '1.0';
+        const version = this._metadata['version-name'] || this._metadata.version || '1.5.1';
         const versionRow = new Adw.ActionRow({ 
             title: _('Version'), 
             subtitle: version 
