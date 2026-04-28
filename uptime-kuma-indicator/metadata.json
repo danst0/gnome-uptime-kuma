@@ -2,7 +2,7 @@
   "uuid": "uptime-kuma-indicator@uptime.dumke.me",
   "name": "Uptime Kuma Indicator",
   "description": "Displays the status of an Uptime Kuma instance in the panel.",
-  "shell-version": ["46", "47", "48", "49"],
+  "shell-version": ["46", "47", "48", "49", "50"],
   "settings-schema": "org.gnome.shell.extensions.kuma",
   "gettext-domain": "uptime-kuma-indicator",
   "url": "https://github.com/danst0/gnome-uptime-kuma",
@@ -10,5 +10,5 @@
     "liberapay": "danst0",
     "paypal": "dumke"
   },
-  "version-name": "1.5.1"
+  "version-name": "1.5.2"
 }
