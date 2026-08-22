@@ -46,7 +46,7 @@
       <summary>Show latency</summary>
       <description>Whether latency values should be shown next to each monitor.</description>
     </key>
-    <!-- max-items removed - service selection now limited to 10 services -->
+    <!-- max-items removed - service selection is capped in prefs.js (MAX_SELECTED_SERVICES) -->
     <key name="appearance" type="s">
       <default>'normal'</default>
       <summary>Indicator appearance</summary>
@@ -70,7 +70,7 @@
     <key name="selected-services" type="as">
       <default>[]</default>
       <summary>Selected service IDs to monitor</summary>
-      <description>Array of up to 10 service IDs (as strings) to monitor. If empty, all services are monitored.</description>
+      <description>Array of up to 50 service IDs (as strings) to monitor. If empty, all services are monitored.</description>
     </key>
     <key name="show-text" type="b">
       <default>true</default>

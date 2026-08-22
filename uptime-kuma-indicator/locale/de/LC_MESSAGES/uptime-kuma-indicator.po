@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Uptime Kuma Indicator 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-23 07:20+0100\n"
+"POT-Creation-Date: 2026-08-22 07:37+0200\n"
 "PO-Revision-Date: 2025-11-03 00:00+0100\n"
 "Last-Translator: Daniel Dumke <uptime.kuma.extension.daniel@dumke.me>\n"
 "Language-Team: German\n"
@@ -75,214 +75,220 @@ msgstr "API‑Token ist nicht verfügbar."
 msgid "Unknown network error"
 msgstr "Unbekannter Netzwerkfehler"
 
-#: uptime-kuma-indicator/prefs.js:58
+#: uptime-kuma-indicator/prefs.js:60
 msgid "GTK-only fallback – consider installing libadwaita."
 msgstr "Nur GTK‑Fallback – installieren Sie ggf. libadwaita."
 
-#: uptime-kuma-indicator/prefs.js:66 uptime-kuma-indicator/prefs.js:80
+#: uptime-kuma-indicator/prefs.js:68 uptime-kuma-indicator/prefs.js:82
 msgid "Base URL"
 msgstr "Basis-URL"
 
-#: uptime-kuma-indicator/prefs.js:67
+#: uptime-kuma-indicator/prefs.js:69
 msgid "Status page slug"
 msgstr "Slug der Statusseite"
 
-#: uptime-kuma-indicator/prefs.js:68
+#: uptime-kuma-indicator/prefs.js:70
 msgid "Status page endpoint template"
 msgstr "Vorlage für Statusseiten-Endpunkt"
 
-#: uptime-kuma-indicator/prefs.js:69
+#: uptime-kuma-indicator/prefs.js:71
 msgid "Status page JSON URL"
 msgstr "JSON-URL der Statusseite"
 
-#: uptime-kuma-indicator/prefs.js:70
+#: uptime-kuma-indicator/prefs.js:72
 msgid "API endpoint"
 msgstr "API-Endpunkt"
 
-#: uptime-kuma-indicator/prefs.js:78
+#: uptime-kuma-indicator/prefs.js:80
 msgid "Connection"
 msgstr "Verbindung"
 
-#: uptime-kuma-indicator/prefs.js:78
+#: uptime-kuma-indicator/prefs.js:80
 msgid "Configure base URL and token for your Uptime Kuma metrics connection."
-msgstr "Konfigurieren Sie Basis-URL und Token für Ihre Uptime-Kuma-Metriken-Verbindung."
+msgstr ""
+"Konfigurieren Sie Basis-URL und Token für Ihre Uptime-Kuma-Metriken-"
+"Verbindung."
 
-#: uptime-kuma-indicator/prefs.js:93
+#: uptime-kuma-indicator/prefs.js:95
 msgid "API token"
 msgstr "API-Token"
 
-#: uptime-kuma-indicator/prefs.js:112
+#: uptime-kuma-indicator/prefs.js:114
 msgid "Service Selection"
 msgstr "Dienstauswahl"
 
-#: uptime-kuma-indicator/prefs.js:113
+#: uptime-kuma-indicator/prefs.js:115
+#, javascript-format
 msgid ""
-"Select up to 10 specific services to monitor. Leave empty to monitor all "
+"Select up to %d specific services to monitor. Leave empty to monitor all "
 "services."
-msgstr "Wählen Sie bis zu 10 bestimmte Dienste zur Überwachung. Leer lassen, um alle Dienste zu überwachen."
+msgstr ""
+"Wählen Sie bis zu %d bestimmte Dienste zur Überwachung. Leer lassen, um alle "
+"Dienste zu überwachen."
 
-#: uptime-kuma-indicator/prefs.js:121
+#: uptime-kuma-indicator/prefs.js:123
 msgid "Add Service"
 msgstr "Dienst hinzufügen"
 
-#: uptime-kuma-indicator/prefs.js:122
+#: uptime-kuma-indicator/prefs.js:124
 msgid "Add another service to monitor"
 msgstr "Weiteren Dienst zur Überwachung hinzufügen"
 
-#: uptime-kuma-indicator/prefs.js:128
+#: uptime-kuma-indicator/prefs.js:130
 msgid "Add service"
 msgstr "Dienst hinzufügen"
 
-#: uptime-kuma-indicator/prefs.js:164 uptime-kuma-indicator/prefs.js:271
+#: uptime-kuma-indicator/prefs.js:166 uptime-kuma-indicator/prefs.js:273
 msgid "Service"
 msgstr "Dienst"
 
-#: uptime-kuma-indicator/prefs.js:165
+#: uptime-kuma-indicator/prefs.js:167
 msgid "Select a service to monitor"
 msgstr "Wählen Sie einen zu überwachenden Dienst"
 
-#: uptime-kuma-indicator/prefs.js:184
+#: uptime-kuma-indicator/prefs.js:186
 msgid "(None)"
 msgstr "(Keine)"
 
-#: uptime-kuma-indicator/prefs.js:202
+#: uptime-kuma-indicator/prefs.js:204
 msgid "not loaded yet"
 msgstr "noch nicht geladen"
 
-#: uptime-kuma-indicator/prefs.js:212
+#: uptime-kuma-indicator/prefs.js:214
 msgid "Remove service"
 msgstr "Dienst entfernen"
 
-#: uptime-kuma-indicator/prefs.js:252
-msgid "Maximum of 10 services reached"
-msgstr "Maximum von 10 Diensten erreicht"
+#: uptime-kuma-indicator/prefs.js:254
+#, javascript-format
+msgid "Maximum of %d services reached"
+msgstr "Maximum von %d Diensten erreicht"
 
-#: uptime-kuma-indicator/prefs.js:296
+#: uptime-kuma-indicator/prefs.js:298
 msgid "Please configure Base URL first."
 msgstr "Bitte zuerst die Basis‑URL konfigurieren."
 
-#: uptime-kuma-indicator/prefs.js:306 uptime-kuma-indicator/prefs.js:315
+#: uptime-kuma-indicator/prefs.js:308 uptime-kuma-indicator/prefs.js:317
 msgid "Please configure API token first."
 msgstr "Bitte zuerst das API‑Token konfigurieren."
 
-#: uptime-kuma-indicator/prefs.js:333
+#: uptime-kuma-indicator/prefs.js:335
 msgid "Failed to fetch services"
 msgstr "Dienste konnten nicht abgerufen werden"
 
-#: uptime-kuma-indicator/prefs.js:611
+#: uptime-kuma-indicator/prefs.js:613
 msgid "Behaviour"
 msgstr "Verhalten"
 
-#: uptime-kuma-indicator/prefs.js:613
+#: uptime-kuma-indicator/prefs.js:615
 msgid "Refresh interval (seconds)"
 msgstr "Aktualisierungsintervall (Sekunden)"
 
-#: uptime-kuma-indicator/prefs.js:613
+#: uptime-kuma-indicator/prefs.js:615
 msgid "Minimum 10 seconds."
 msgstr "Mindestens 10 Sekunden."
 
-#: uptime-kuma-indicator/prefs.js:617
+#: uptime-kuma-indicator/prefs.js:619
 msgid "Show latency"
 msgstr "Latenz anzeigen"
 
-#: uptime-kuma-indicator/prefs.js:617
+#: uptime-kuma-indicator/prefs.js:619
 msgid "Displays ping measurements when available."
 msgstr "Zeigt Ping‑Messwerte an, wenn verfügbar."
 
-#: uptime-kuma-indicator/prefs.js:621
+#: uptime-kuma-indicator/prefs.js:623
 msgid "Show text in panel"
 msgstr "Text im Panel anzeigen"
 
-#: uptime-kuma-indicator/prefs.js:621
+#: uptime-kuma-indicator/prefs.js:623
 msgid "Display status summary next to the indicator dot."
 msgstr "Statuszusammenfassung neben dem Punkt anzeigen."
 
-#: uptime-kuma-indicator/prefs.js:625
+#: uptime-kuma-indicator/prefs.js:627
 msgid "Show uptime badges"
 msgstr "Uptime-Badges anzeigen"
 
-#: uptime-kuma-indicator/prefs.js:625
+#: uptime-kuma-indicator/prefs.js:627
 msgid "Display the 24-hour uptime badge next to each monitor entry."
 msgstr "Das 24-Stunden-Uptime-Badge neben jedem Monitor anzeigen."
 
-#: uptime-kuma-indicator/prefs.js:629
+#: uptime-kuma-indicator/prefs.js:631
 msgid "Enable notifications"
 msgstr "Benachrichtigungen aktivieren"
 
-#: uptime-kuma-indicator/prefs.js:629
+#: uptime-kuma-indicator/prefs.js:631
 msgid "Show desktop notifications when a service goes offline."
 msgstr "Desktop‑Benachrichtigungen anzeigen, wenn ein Dienst offline geht."
 
-#: uptime-kuma-indicator/prefs.js:631
+#: uptime-kuma-indicator/prefs.js:633
 msgid "Notify on recovery"
 msgstr "Bei Wiederherstellung benachrichtigen"
 
-#: uptime-kuma-indicator/prefs.js:631
+#: uptime-kuma-indicator/prefs.js:633
 msgid "Show desktop notifications when a service comes back online."
 msgstr ""
 "Desktop‑Benachrichtigungen anzeigen, wenn ein Dienst wieder online ist."
 
-#: uptime-kuma-indicator/prefs.js:646
+#: uptime-kuma-indicator/prefs.js:648
 msgid "Enable demo data"
 msgstr "Demo‑Daten aktivieren"
 
-#: uptime-kuma-indicator/prefs.js:646
+#: uptime-kuma-indicator/prefs.js:648
 msgid "Use mock monitors when no base URL is configured."
 msgstr "Mock‑Monitore verwenden, wenn keine Basis‑URL konfiguriert ist."
 
-#: uptime-kuma-indicator/prefs.js:650
+#: uptime-kuma-indicator/prefs.js:652
 msgid "Appearance"
 msgstr "Aussehen"
 
-#: uptime-kuma-indicator/prefs.js:652
+#: uptime-kuma-indicator/prefs.js:654
 msgid "Normal"
 msgstr "Normal"
 
-#: uptime-kuma-indicator/prefs.js:653
+#: uptime-kuma-indicator/prefs.js:655
 msgid "Compact"
 msgstr "Kompakt"
 
-#: uptime-kuma-indicator/prefs.js:663
+#: uptime-kuma-indicator/prefs.js:665
 msgid "Log level"
 msgstr "Protokollstufe"
 
-#: uptime-kuma-indicator/prefs.js:665
+#: uptime-kuma-indicator/prefs.js:667
 msgid "Errors only"
 msgstr "Nur Fehler"
 
-#: uptime-kuma-indicator/prefs.js:666
+#: uptime-kuma-indicator/prefs.js:668
 msgid "Informational"
 msgstr "Informativ"
 
-#: uptime-kuma-indicator/prefs.js:667
+#: uptime-kuma-indicator/prefs.js:669
 msgid "Debug"
 msgstr "Debug"
 
-#: uptime-kuma-indicator/prefs.js:681
+#: uptime-kuma-indicator/prefs.js:683
 msgid "About"
 msgstr "Info"
 
-#: uptime-kuma-indicator/prefs.js:686
+#: uptime-kuma-indicator/prefs.js:688
 msgid "Version"
 msgstr "Version"
 
-#: uptime-kuma-indicator/prefs.js:694
+#: uptime-kuma-indicator/prefs.js:696
 msgid "Author"
 msgstr "Autor"
 
-#: uptime-kuma-indicator/prefs.js:702
+#: uptime-kuma-indicator/prefs.js:704
 msgid "GitHub"
 msgstr "GitHub"
 
-#: uptime-kuma-indicator/prefs.js:709
+#: uptime-kuma-indicator/prefs.js:711
 msgid "Open on GitHub"
 msgstr "Auf GitHub öffnen"
 
-#: uptime-kuma-indicator/prefs.js:721
+#: uptime-kuma-indicator/prefs.js:723
 msgid "Documentation"
 msgstr "Dokumentation"
 
-#: uptime-kuma-indicator/prefs.js:722
+#: uptime-kuma-indicator/prefs.js:724
 msgid "Check the README for configuration examples."
 msgstr "Siehe README für Konfigurationsbeispiele."
 

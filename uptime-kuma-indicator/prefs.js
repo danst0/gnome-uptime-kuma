@@ -6,6 +6,8 @@ import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/
 import { _ } from './utils/i18n.js';
 import { normalizeMetrics } from './utils/parsers.js';
 
+const MAX_SELECTED_SERVICES = 50;
+
 export default class UptimeKumaPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
@@ -110,7 +112,7 @@ class PreferencesBuilder {
     _buildServiceSelectionGroup(page) {
         this._serviceGroup = new Adw.PreferencesGroup({ 
             title: _('Service Selection'), 
-            description: _('Select up to 10 specific services to monitor. Leave empty to monitor all services.') 
+            description: _('Select up to %d specific services to monitor. Leave empty to monitor all services.').format(MAX_SELECTED_SERVICES) 
         });
 
         // Auto-fetch on initial load
@@ -248,8 +250,8 @@ class PreferencesBuilder {
 
     _addServiceRow() {
         const currentCount = this._serviceDropdowns.length;
-        if (currentCount >= 10) {
-            this._showError(_('Maximum of 10 services reached'));
+        if (currentCount >= MAX_SELECTED_SERVICES) {
+            this._showError(_('Maximum of %d services reached').format(MAX_SELECTED_SERVICES));
             return;
         }
         
@@ -278,7 +280,7 @@ class PreferencesBuilder {
     _updateAddButtonVisibility() {
         if (!this._addServiceRowWidget) return;
         const currentCount = this._serviceDropdowns.length;
-        this._addServiceRowWidget.set_visible(currentCount < 10);
+        this._addServiceRowWidget.set_visible(currentCount < MAX_SELECTED_SERVICES);
     }
 
     async _fetchServices() {
