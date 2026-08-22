@@ -7,6 +7,19 @@ import { _ } from './utils/i18n.js';
 import { normalizeMetrics } from './utils/parsers.js';
 
 const MAX_SELECTED_SERVICES = 50;
+const URL_SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+// Soup.Message.new() returns null for anything that is not an absolute URL.
+// Without this guard a base URL like "localhost:3001" fails with an opaque
+// "message is null" TypeError instead of telling the user what is wrong.
+function createMessage(method, url) {
+    const message = Soup.Message.new(method, url);
+
+    if (!message)
+        throw new Error(_('Not a valid URL: %s').format(url));
+
+    return message;
+}
 
 export default class UptimeKumaPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -294,8 +307,13 @@ class PreferencesBuilder {
             const baseUrl = this._settings.get_string('base-url');
             const apiMode = this._settings.get_string('api-mode');
             
-            if (!baseUrl) {
+            if (!baseUrl.trim()) {
                 this._showError(_('Please configure Base URL first.'));
+                return;
+            }
+
+            if (!URL_SCHEME_PATTERN.test(baseUrl.trim())) {
+                this._showError(_('Base URL needs a scheme such as https:// (got: %s)').format(baseUrl.trim()));
                 return;
             }
 
@@ -415,7 +433,7 @@ class PreferencesBuilder {
     async _getJson(url, headers = {}) {
         return new Promise((resolve, reject) => {
             const session = new Soup.Session({ timeout: 10 });
-            const message = Soup.Message.new('GET', url);
+            const message = createMessage('GET', url);
             
             message.request_headers.replace('Accept', 'application/json');
             for (const [key, value] of Object.entries(headers)) {
@@ -445,7 +463,7 @@ class PreferencesBuilder {
     async _getText(url, headers = {}) {
         return new Promise((resolve, reject) => {
             const session = new Soup.Session({ timeout: 10 });
-            const message = Soup.Message.new('GET', url);
+            const message = createMessage('GET', url);
 
             if (!headers.Accept)
                 message.request_headers.replace('Accept', 'text/plain');

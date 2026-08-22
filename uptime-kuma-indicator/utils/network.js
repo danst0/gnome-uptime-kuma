@@ -9,6 +9,30 @@ const RETRY_BACKOFF = 1.6;
 const USER_AGENT = 'UptimeKumaIndicator/1.0 (GNOME Shell Extension)';
 const HEARTBEAT_LIMIT = 24;
 const BADGE_PERCENTAGE_PATTERN = />\s*(\d+(?:[.,]\d+)?)\s*%/;
+const URL_SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+// Soup.Message.new() returns null for anything that is not an absolute URL,
+// which otherwise surfaces as an opaque "message is null" TypeError further
+// down. Validate the configured base URL up front so the user gets told what
+// is actually wrong with it.
+function assertValidBaseUrl(baseUrl) {
+    const trimmed = typeof baseUrl === 'string' ? baseUrl.trim() : '';
+
+    if (!trimmed)
+        throw new Error(_('Base URL is missing.'));
+
+    if (!URL_SCHEME_PATTERN.test(trimmed))
+        throw new Error(_('Base URL needs a scheme such as https:// (got: %s)').format(trimmed));
+}
+
+function createMessage(method, url) {
+    const message = Soup.Message.new(method, url);
+
+    if (!message)
+        throw new Error(_('Not a valid URL: %s').format(url));
+
+    return message;
+}
 
 function bytesToString(bytes) {
     if (!bytes)
@@ -33,8 +57,9 @@ function joinUrl(base, path) {
         return base;
     if (path.startsWith('http://') || path.startsWith('https://'))
         return path;
-    const cleanedBase = base.endsWith('/') ? base.slice(0, -1) : base;
-    const cleanedPath = path.startsWith('/') ? path.slice(1) : path;
+    const trimmedBase = base.trim();
+    const cleanedBase = trimmedBase.endsWith('/') ? trimmedBase.slice(0, -1) : trimmedBase;
+    const cleanedPath = path.trim().startsWith('/') ? path.trim().slice(1) : path.trim();
     return `${cleanedBase}/${cleanedPath}`;
 }
 
@@ -100,8 +125,7 @@ export class MonitorFetcher {
             return null;
 
         const { baseUrl } = config;
-        if (!baseUrl)
-            throw new Error(_('Base URL is missing.'));
+        assertValidBaseUrl(baseUrl);
 
         const log = helpers.log ?? (() => {});
         const encodedId = encodeURIComponent(String(monitorId));
@@ -124,8 +148,7 @@ export class MonitorFetcher {
     async _fetchStatusPage(config, log) {
         const { baseUrl, statusPageJsonUrl, statusPageSlug, statusPageEndpoint } = config;
 
-        if (!baseUrl)
-            throw new Error(_('Base URL is missing.'));
+        assertValidBaseUrl(baseUrl);
 
         let endpoint = statusPageJsonUrl || '';
         if (!endpoint) {
@@ -144,8 +167,7 @@ export class MonitorFetcher {
 
     async _fetchPrivateApi(config, helpers, log) {
         const { baseUrl, apiEndpoint } = config;
-        if (!baseUrl)
-            throw new Error(_('Base URL is missing.'));
+        assertValidBaseUrl(baseUrl);
 
         const getApiKey = helpers.getApiKey;
         const apiKey = getApiKey ? await getApiKey() : null;
@@ -168,8 +190,7 @@ export class MonitorFetcher {
 
     async _fetchMetrics(config, helpers, log) {
         const { baseUrl, metricsEndpoint } = config;
-        if (!baseUrl)
-            throw new Error(_('Base URL is missing.'));
+        assertValidBaseUrl(baseUrl);
 
         const getApiKey = helpers.getApiKey;
         const apiKey = getApiKey ? await getApiKey() : null;
@@ -267,7 +288,7 @@ export class MonitorFetcher {
         let lastError = null;
 
         while (attempt < this._retries) {
-            const message = Soup.Message.new(method, url);
+            const message = createMessage(method, url);
             message.timeout = this._timeoutSeconds;
 
             for (const [key, value] of Object.entries(headers))
