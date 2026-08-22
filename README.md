@@ -38,13 +38,24 @@
 - **🧪 Demo Mode**: Test the UI with mock data before connecting to your instance
 - **🔍 Keyboard-First Search**: Quickly filter monitors inside the dropdown via inline search with substring matching
 
-## 🆕 What's New in 1.5.2
+## 🆕 What's New in 1.5.3
+
+- 📋 **Up to 50 monitors in the service picker.** The old limit of 10 was a preferences-only cap — the schema and the polling code never restricted anything — so selecting a subset of a larger instance now works as expected. Thanks to [@antonio24073](https://github.com/antonio24073) for [#7](https://github.com/danst0/gnome-uptime-kuma/pull/7) and to [@espensa](https://github.com/espensa) for reporting [#5](https://github.com/danst0/gnome-uptime-kuma/issues/5).
+- 🔗 **A malformed Base URL now tells you what is wrong.** Leaving off the scheme (`localhost:3001` instead of `http://localhost:3001`) used to fail with an opaque `message is null` TypeError; you now get a clear message in the preferences dialog and in the log. A stray space around the URL is tolerated too.
+- 🔤 **Translation refresh.** The service-selection strings carry a placeholder instead of a hardcoded number, and the Swedish and Japanese catalogs no longer advertise a stale limit of 4 services.
+
+<details>
+<summary>Earlier releases</summary>
+
+### 1.5.2
 
 - 🐚 **GNOME Shell 50 support.** The extension is now declared compatible with GNOME 50 (Fedora 44), so it no longer shows up as "Out of date" on those systems. No code changes were required for the bump.
 - 🔤 **1.5.1 translation refresh** is still included: all locales (English, German, Japanese, Swedish) cover the latest service-selection UI and About dialog strings.
 - 🌙 **1.5 suspend/resume improvements** remain in place: automatic network session rebuild after wake and extra logging around recovery.
 
 Upgrading from earlier releases still includes the monitor picker and UI refinements introduced in 1.3/1.4.
+
+</details>
 
 ## 📦 Requirements
 
