@@ -29,6 +29,9 @@ const LOG_LEVELS = ['error', 'info', 'debug'];
 
 const USEC_PER_SEC = 1_000_000;
 const REFRESH_ON_ENABLE_DELAY_MS = 200;
+// The prefs entries write on every keystroke, so coalesce the resulting
+// refreshes instead of firing a request (and an error log) per character.
+const SETTINGS_REFRESH_DEBOUNCE_MS = 500;
 const BADGE_CACHE_TTL_MS = 10 * 60 * 1000;
 const BADGE_CACHE_ROOT = GLib.get_user_cache_dir() || GLib.get_home_dir() || GLib.get_tmp_dir();
 const BADGE_CACHE_DIR = GLib.build_filenamev([
@@ -303,6 +306,7 @@ class KumaIndicator extends PanelMenu.Button {
         this._settingsConnections = [];
         this._refreshLoopId = 0;
         this._enableTimeoutId = 0;
+        this._settingsRefreshId = 0;
         this._isRefreshing = false;
         this._rows = new Map();
         this._lastRefresh = null;
@@ -399,6 +403,11 @@ class KumaIndicator extends PanelMenu.Button {
             this._enableTimeoutId = 0;
         }
 
+        if (this._settingsRefreshId) {
+            GLib.source_remove(this._settingsRefreshId);
+            this._settingsRefreshId = 0;
+        }
+
         // Destroy all monitor rows
         for (const row of this._rows.values()) {
             row.destroy();
@@ -421,6 +430,17 @@ class KumaIndicator extends PanelMenu.Button {
         if (this._settings) {
             this._settings = null;
         }
+    }
+
+    _queueRefresh() {
+        if (this._settingsRefreshId)
+            GLib.source_remove(this._settingsRefreshId);
+
+        this._settingsRefreshId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SETTINGS_REFRESH_DEBOUNCE_MS, () => {
+            this._settingsRefreshId = 0;
+            this._refresh();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _bindSettings() {
@@ -459,7 +479,7 @@ class KumaIndicator extends PanelMenu.Button {
                     this._updateTextVisibility();
 
                 if (['base-url', 'api-mode', 'status-page-json-url', 'status-page-endpoint', 'status-page-slug', 'api-endpoint', 'metrics-endpoint', 'api-key', 'demo-mode', 'show-latency', 'selected-services', 'enable-notifications', 'notify-on-recovery', 'show-badges'].includes(key))
-                    this._refresh();
+                    this._queueRefresh();
             });
             this._settingsConnections.push(id);
         }
