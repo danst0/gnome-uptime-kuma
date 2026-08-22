@@ -170,9 +170,10 @@ gnome-extensions prefs uptime-kuma-indicator@uptime.dumke.me
 
 ```bash
 # From project root
-make build
+make pack
 
-# The packaged extension will be in uptime-kuma-indicator/build/
+# The packaged extension is written to the project root as
+# uptime-kuma-indicator@uptime.dumke.me.shell-extension.zip
 ```
 
 ## 🐛 Troubleshooting
