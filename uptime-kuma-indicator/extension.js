@@ -7,6 +7,7 @@ import Pango from 'gi://Pango';
 import Rsvg from 'gi://Rsvg?version=2.0';
 import St from 'gi://St';
 
+import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -15,6 +16,24 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { MonitorFetcher } from './utils/network.js';
 import { aggregateMonitors, mockMonitors } from './utils/parsers.js';
 import { _, ngettext } from './utils/i18n.js';
+
+// GNOME Shell 48 added St.BoxLayout:orientation; GNOME Shell 51 removed the
+// older :vertical property, so neither one works across the whole supported
+// range. Pick the right constructor property from the running shell version.
+const [SHELL_MAJOR] = Config.PACKAGE_VERSION.split('.');
+const SHELL_VERSION = Number.parseInt(SHELL_MAJOR);
+
+function boxOrientation(vertical) {
+    if (SHELL_VERSION >= 48) {
+        return {
+            orientation: vertical
+                ? Clutter.Orientation.VERTICAL
+                : Clutter.Orientation.HORIZONTAL,
+        };
+    }
+
+    return { vertical };
+}
 
 const INDICATOR_NAME = 'uptime-kuma-indicator';
 const STATUS_CLASS_MAP = {
@@ -122,7 +141,7 @@ class MonitorRow extends St.BoxLayout {
     _init(monitor, showLatency, showBadges) {
         super._init({
             style_class: 'kuma-list-row',
-            vertical: false,
+            ...boxOrientation(false),
             x_expand: true,
             y_expand: false,
         });
@@ -263,7 +282,7 @@ class ScrollSection extends PopupMenu.PopupBaseMenuItem {
         this._scrollView.style = `max-height: ${maxHeight}px;`;
 
         this._list = new St.BoxLayout({
-            vertical: true,
+            ...boxOrientation(true),
             style_class: 'kuma-monitor-list',
         });
         this._scrollView.add_child(this._list);
@@ -330,7 +349,7 @@ class KumaIndicator extends PanelMenu.Button {
 
         this._indicatorBox = new St.BoxLayout({
             style_class: 'kuma-indicator-box',
-            vertical: false,
+            ...boxOrientation(false),
             x_expand: true,
         });
         if (typeof this._indicatorBox.set_spacing === 'function')

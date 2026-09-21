@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-GNOME Shell extension (GJS, ESM modules) that polls an Uptime Kuma instance and renders monitor status in the top panel plus a popup. UUID `uptime-kuma-indicator@uptime.dumke.me`, schema id `org.gnome.shell.extensions.kuma`. Targets GNOME Shell 46–50. No npm/test toolchain — everything runs inside `gjs` as loaded by gnome-shell.
+GNOME Shell extension (GJS, ESM modules) that polls an Uptime Kuma instance and renders monitor status in the top panel plus a popup. UUID `uptime-kuma-indicator@uptime.dumke.me`, schema id `org.gnome.shell.extensions.kuma`. Targets GNOME Shell 46–51. No npm/test toolchain — everything runs inside `gjs` as loaded by gnome-shell.
 
 The actual extension lives in `uptime-kuma-indicator/`; the repo root is just packaging + docs.
 
