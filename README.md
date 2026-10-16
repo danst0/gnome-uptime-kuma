@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![GNOME Shell Extension](https://img.shields.io/badge/GNOME%20Shell-46%20%7C%2047%20%7C%2048%20%7C%2049%20%7C%2050-blue?style=flat-square&logo=gnome)
+![GNOME Shell Extension](https://img.shields.io/badge/GNOME%20Shell-46%20%7C%2047%20%7C%2048%20%7C%2049%20%7C%2050%20%7C%2051-blue?style=flat-square&logo=gnome)
 ![License](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-green?style=flat-square)
 ![Version](https://img.shields.io/badge/version-1.5.2-orange?style=flat-square)
 
@@ -63,7 +63,7 @@ Upgrading from earlier releases still includes the monitor picker and UI refinem
 
 ## 📦 Requirements
 
-- **GNOME Shell**: Version 46, 47, 48, 49, or 50
+- **GNOME Shell**: Version 46, 47, 48, 49, 50, or 51
 - **Dependencies**: GJS with Soup 3 and libadwaita 1.4+
 - **Uptime Kuma**: Version 0.10+ with one of:
   - Public status page enabled
