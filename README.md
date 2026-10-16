@@ -4,7 +4,7 @@
 
 ![GNOME Shell Extension](https://img.shields.io/badge/GNOME%20Shell-46%20%7C%2047%20%7C%2048%20%7C%2049%20%7C%2050%20%7C%2051-blue?style=flat-square&logo=gnome)
 ![License](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-green?style=flat-square)
-![Version](https://img.shields.io/badge/version-1.5.2-orange?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.5.5-orange?style=flat-square)
 
 **Monitor your [Uptime Kuma](https://github.com/louislam/uptime-kuma) services directly from your GNOME desktop.**
 
@@ -38,12 +38,16 @@
 - **🧪 Demo Mode**: Test the UI with mock data before connecting to your instance
 - **🔍 Keyboard-First Search**: Quickly filter monitors inside the dropdown via inline search with substring matching
 
-## 🆕 What's New in 1.5.4
+## 🆕 What's New in 1.5.5
 
-- 🔇 **Far less log noise while configuring.** Every preferences entry writes on each keystroke, and each write immediately triggered a refresh — so typing a 25-character Base URL fired roughly 25 requests and 25 error lines into the journal. Settings-driven refreshes are now coalesced with a 500 ms debounce, leaving a single request once you stop typing.
+- 🐚 **GNOME Shell 51 support.** GNOME 51 removed `St.BoxLayout:vertical`, which stopped the extension from loading at all. Layouts now use `orientation` on Shell 48+ and keep the old property on 46/47, so a single build works across 46–51. Thanks to [@kefahi](https://github.com/kefahi) for [#8](https://github.com/danst0/gnome-uptime-kuma/pull/8).
 
 <details>
 <summary>Earlier releases</summary>
+
+### 1.5.4
+
+- 🔇 **Far less log noise while configuring.** Every preferences entry writes on each keystroke, and each write immediately triggered a refresh — so typing a 25-character Base URL fired roughly 25 requests and 25 error lines into the journal. Settings-driven refreshes are now coalesced with a 500 ms debounce, leaving a single request once you stop typing.
 
 ### 1.5.3
 
