@@ -1,4 +1,3 @@
-import Cairo from 'cairo';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -15,6 +14,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import { MonitorFetcher } from './utils/network.js';
 import { aggregateMonitors, mockMonitors } from './utils/parsers.js';
+import { UptimeTracker } from './utils/uptime-tracker.js';
 import { _, ngettext } from './utils/i18n.js';
 
 // GNOME Shell 48 added St.BoxLayout:orientation; GNOME Shell 51 removed the
@@ -58,37 +58,111 @@ const BADGE_CACHE_DIR = GLib.build_filenamev([
     'uptime-kuma-indicator',
     'badges',
 ]);
+const UPTIME_HISTORY_PATH = GLib.build_filenamev([
+    BADGE_CACHE_ROOT,
+    'uptime-kuma-indicator',
+    'uptime-history.json',
+]);
+
+Gio._promisify(Gio.File.prototype, 'replace_contents_bytes_async', 'replace_contents_finish');
+Gio._promisify(Gio.File.prototype, 'query_info_async');
+
 const LOGIN1_BUS_NAME = 'org.freedesktop.login1';
 const LOGIN1_OBJECT_PATH = '/org/freedesktop/login1';
 const LOGIN1_INTERFACE = 'org.freedesktop.login1.Manager';
 
-function convertSvgToPng(svgContent, pngPath) {
+// Rasterizes in memory only; the caller writes the result asynchronously.
+function renderSvgToPng(svgContent) {
     if (typeof svgContent !== 'string' || svgContent.length === 0)
         throw new Error('SVG content is empty');
 
-    const bytes = new GLib.Bytes(new TextEncoder().encode(svgContent));
     let handle;
     try {
-        handle = Rsvg.Handle.new_from_bytes(bytes);
+        handle = Rsvg.Handle.new_from_data(new TextEncoder().encode(svgContent));
     } catch (error) {
         throw new Error(`Failed to parse SVG: ${error.message}`);
     }
 
-    const { width, height } = handle.get_intrinsic_size_in_pixels();
-    const targetWidth = Math.max(16, Math.round(width || 138));
-    const targetHeight = Math.max(16, Math.round(height || 20));
+    const pixbuf = handle.get_pixbuf();
+    if (!pixbuf)
+        throw new Error('Failed to render SVG');
 
-    const surface = new Cairo.ImageSurface(Cairo.Format.ARGB32, targetWidth, targetHeight);
-    const cr = new Cairo.Context(surface);
-    cr.scale(targetWidth / (width || targetWidth), targetHeight / (height || targetHeight));
-    handle.render_cairo(cr);
-    surface.write_to_png(pngPath);
+    const [ok, buffer] = pixbuf.save_to_bufferv('png', [], []);
+    if (!ok)
+        throw new Error('Failed to encode PNG');
+
+    return new GLib.Bytes(buffer);
+}
+
+async function fileExists(path, cancellable) {
+    try {
+        await Gio.File.new_for_path(path).query_info_async(
+            'standard::type', Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT, cancellable);
+        return true;
+    } catch (error) {
+        return false;
+    }
 }
 
 function hashBadgeKey(key) {
     if (!key)
         return 'badge';
     return GLib.compute_checksum_for_string(GLib.ChecksumType.SHA256, key, key.length);
+}
+
+function estimateBadgeTextWidth(text) {
+    let width = 0;
+    for (const ch of text) {
+        if (ch === ' ' || ch === '.' || ch === ':' || ch === ',')
+            width += 4;
+        else if (ch === '%' || ch === '1' || ch === 'i' || ch === 'l')
+            width += 5;
+        else if (ch >= '0' && ch <= '9')
+            width += 7;
+        else if (ch >= 'A' && ch <= 'Z')
+            width += 9;
+        else
+            width += 7;
+    }
+    return width;
+}
+
+function uptimeBadgeColor(percentage) {
+    if (percentage >= 99)
+        return '#66c20a';
+    if (percentage >= 90)
+        return '#dfb317';
+    return '#e05d44';
+}
+
+function buildUptimeBadgeSvg(percentage) {
+    const label = '24h';
+    const value = percentage >= 100 ? '100%' : `${percentage.toFixed(2)}%`;
+    const color = uptimeBadgeColor(percentage);
+
+    const labelTextWidth = estimateBadgeTextWidth(label);
+    const valueTextWidth = estimateBadgeTextWidth(value);
+    const labelWidth = labelTextWidth + 10;
+    const valueWidth = valueTextWidth + 10;
+    const totalWidth = labelWidth + valueWidth;
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="20" role="img" aria-label="${label}: ${value}">` +
+        `<title>${label}: ${value}</title>` +
+        '<linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>' +
+        `<clipPath id="r"><rect width="${totalWidth}" height="20" rx="3" fill="#fff"/></clipPath>` +
+        '<g clip-path="url(#r)">' +
+        `<rect width="${labelWidth}" height="20" fill="#555"/>` +
+        `<rect x="${labelWidth}" width="${valueWidth}" height="20" fill="${color}"/>` +
+        `<rect width="${totalWidth}" height="20" fill="url(#s)"/>` +
+        '</g>' +
+        '<g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110">' +
+        `<text aria-hidden="true" x="${labelWidth * 5}" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="${labelTextWidth * 10}">${label}</text>` +
+        `<text x="${labelWidth * 5}" y="140" transform="scale(.1)" fill="#fff" textLength="${labelTextWidth * 10}">${label}</text>` +
+        `<text aria-hidden="true" x="${(labelWidth + valueWidth / 2) * 10}" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="${valueTextWidth * 10}">${value}</text>` +
+        `<text x="${(labelWidth + valueWidth / 2) * 10}" y="140" transform="scale(.1)" fill="#fff" textLength="${valueTextWidth * 10}">${value}</text>` +
+        '</g></svg>';
+
+    return { svg, width: totalWidth, height: 20 };
 }
 
 function toDateTime(value) {
@@ -224,11 +298,15 @@ class MonitorRow extends St.BoxLayout {
 
         if (showBadges) {
             const iconPath = monitor.badgeIconPath;
-            const hasIcon = typeof iconPath === 'string' && iconPath.length > 0 && GLib.file_test(iconPath, GLib.FileTest.EXISTS);
+            const hasIcon = typeof iconPath === 'string' && iconPath.length > 0;
             if (hasIcon) {
                 try {
                     const file = Gio.File.new_for_path(iconPath);
                     this._badgeIcon.gicon = new Gio.FileIcon({ file });
+                    const width = Number.isFinite(monitor.badgeIconWidth) && monitor.badgeIconWidth > 0
+                        ? Math.round(monitor.badgeIconWidth)
+                        : 16;
+                    this._badgeIcon.icon_size = width;
                     this._badgeIcon.visible = true;
                 } catch (error) {
                     this._badgeIcon.visible = false;
@@ -335,8 +413,9 @@ class KumaIndicator extends PanelMenu.Button {
         this._previousMonitorStates = new Map(); // Track previous states for notifications
         this._badgeCache = new Map();
         this._badgeCacheDir = BADGE_CACHE_DIR;
+        this._ioCancellable = new Gio.Cancellable();
+        this._uptimeTracker = new UptimeTracker(UPTIME_HISTORY_PATH);
         this._ensureBadgeCacheDir();
-        this._backfillBadgeCache();
 
         this._summaryState = {
             up: 0,
@@ -433,6 +512,11 @@ class KumaIndicator extends PanelMenu.Button {
         }
         this._rows.clear();
         this._badgeCache.clear();
+        this._ioCancellable.cancel();
+        if (this._uptimeTracker) {
+            this._uptimeTracker.destroy();
+            this._uptimeTracker = null;
+        }
 
         if (this._fetcher) {
             this._fetcher.destroy();
@@ -540,86 +624,18 @@ class KumaIndicator extends PanelMenu.Button {
         }
     }
 
-    _backfillBadgeCache() {
-        if (!this._badgeCacheDir || !GLib.file_test(this._badgeCacheDir, GLib.FileTest.IS_DIR))
-            return;
-
-        let enumerator = null;
-        try {
-            const directory = Gio.File.new_for_path(this._badgeCacheDir);
-            enumerator = directory.enumerate_children('standard::name,standard::type', Gio.FileQueryInfoFlags.NONE, null);
-            let info;
-            while ((info = enumerator.next_file(null))) {
-                const name = info.get_name();
-                if (!name || !name.endsWith('.svg'))
-                    continue;
-
-                const baseName = name.slice(0, -4);
-                const pngPath = GLib.build_filenamev([this._badgeCacheDir, `${baseName}.png`]);
-                if (GLib.file_test(pngPath, GLib.FileTest.EXISTS))
-                    continue;
-
-                const svgPath = GLib.build_filenamev([this._badgeCacheDir, name]);
-                const [ok, contents] = GLib.file_get_contents(svgPath);
-                if (!ok || !contents)
-                    continue;
-
-                try {
-                    const svgText = new TextDecoder().decode(contents);
-                    convertSvgToPng(svgText, pngPath);
-                } catch (error) {
-                    this._log('debug', `Failed to backfill badge ${baseName}: ${error.message}`);
-                }
-            }
-        } catch (error) {
-            this._log('debug', `Badge cache enumeration failed: ${error.message}`);
-        } finally {
-            if (enumerator)
-                enumerator.close(null);
-        }
-    }
-
     _getBadgeFileBase(cacheKey) {
         this._ensureBadgeCacheDir();
         const safeKey = hashBadgeKey(cacheKey ?? 'badge');
         return GLib.build_filenamev([this._badgeCacheDir, safeKey]);
     }
 
-    _storeBadgeAssets(cacheKey, svgContent) {
-        if (typeof svgContent !== 'string' || svgContent.length === 0)
-            return { svgPath: null, pngPath: null };
-
-        const basePath = this._getBadgeFileBase(cacheKey);
-        const svgPath = `${basePath}.svg`;
-        const pngPath = `${basePath}.png`;
-
-        const success = GLib.file_set_contents(svgPath, svgContent);
-        if (!success)
-            throw new Error('Failed to persist badge SVG');
-        convertSvgToPng(svgContent, pngPath);
-
-        return { svgPath, pngPath };
-    }
-
-    _restoreBadgeIcon(cacheKey) {
-        try {
-            const basePath = this._getBadgeFileBase(cacheKey);
-            const svgPath = `${basePath}.svg`;
-            const pngPath = `${basePath}.png`;
-            if (!GLib.file_test(svgPath, GLib.FileTest.EXISTS))
-                return null;
-
-            const [ok, contents] = GLib.file_get_contents(svgPath);
-            if (!ok || !contents)
-                return null;
-
-            const svgText = new TextDecoder().decode(contents);
-            convertSvgToPng(svgText, pngPath);
-            return pngPath;
-        } catch (error) {
-            this._log('debug', `Failed to rebuild badge PNG (${cacheKey}): ${error.message}`);
-            return null;
-        }
+    async _writeBadgePng(cacheKey, svgContent) {
+        const pngPath = `${this._getBadgeFileBase(cacheKey)}.png`;
+        const bytes = renderSvgToPng(svgContent);
+        await Gio.File.new_for_path(pngPath).replace_contents_bytes_async(
+            bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, this._ioCancellable);
+        return pngPath;
     }
 
     _applyAppearance() {
@@ -832,6 +848,8 @@ class KumaIndicator extends PanelMenu.Button {
         if (!Array.isArray(monitors) || monitors.length === 0)
             return;
 
+        this._uptimeTracker?.record(monitors);
+
         if (!this._config.showBadges) {
             for (const monitor of monitors) {
                 if (monitor) {
@@ -842,70 +860,68 @@ class KumaIndicator extends PanelMenu.Button {
             return;
         }
 
-        if (!this._config.baseUrl) {
-            for (const monitor of monitors) {
-                if (monitor) {
-                    if (typeof monitor?.uptime24h !== 'number')
-                        monitor.uptime24h = null;
-                    monitor.badgeIconPath = null;
-                }
-            }
-            return;
-        }
-
         const now = Date.now();
         const tasks = monitors.map(async monitor => {
-            const rawId = monitor?.id;
-            if (rawId === undefined || rawId === null)
+            if (!monitor)
                 return;
 
-            const cacheKey = `${String(rawId)}-uptime-24h`;
-            const cached = this._badgeCache.get(cacheKey);
-            if (cached && (now - cached.timestamp) < BADGE_CACHE_TTL_MS) {
-                monitor.uptime24h = (typeof cached.value === 'number') ? cached.value : null;
-                let iconPath = cached.pngPath;
-                const iconValid = iconPath && GLib.file_test(iconPath, GLib.FileTest.EXISTS);
-                if (!iconValid)
-                    iconPath = this._restoreBadgeIcon(cacheKey);
+            const rawId = monitor.id;
+            const cacheKey = `${String(rawId ?? 'unknown')}-uptime-24h`;
 
-                if (iconPath) {
-                    monitor.badgeIconPath = iconPath;
-                    this._badgeCache.set(cacheKey, {
-                        value: monitor.uptime24h,
-                        pngPath: iconPath,
-                        timestamp: cached.timestamp,
-                    });
-                    return;
+            let percentage = typeof monitor.uptime24h === 'number' ? monitor.uptime24h : null;
+
+            if (percentage === null && rawId !== undefined && rawId !== null && /^\d+$/.test(String(rawId))) {
+                const cached = this._badgeCache.get(cacheKey);
+                if (cached && (now - cached.timestamp) < BADGE_CACHE_TTL_MS) {
+                    percentage = typeof cached.value === 'number' ? cached.value : null;
+                } else if (this._config.baseUrl) {
+                    try {
+                        const payload = await this._fetcher.fetchUptimeBadge(rawId, this._config, {
+                            log: (level, message) => this._log(level, message),
+                        });
+                        percentage = (typeof payload?.percentage === 'number') ? payload.percentage : null;
+                        this._badgeCache.set(cacheKey, {
+                            value: percentage,
+                            timestamp: Date.now(),
+                        });
+                    } catch (error) {
+                        this._log('debug', `Failed to fetch uptime badge for ${cacheKey}: ${error.message}`);
+                    }
                 }
             }
 
-            try {
-                const payload = await this._fetcher.fetchUptimeBadge(rawId, this._config, {
-                    log: (level, message) => this._log(level, message),
-                });
-                const percentage = (typeof payload?.percentage === 'number') ? payload.percentage : null;
-                const svgContent = typeof payload?.svg === 'string' ? payload.svg : null;
-                let pngPath = null;
-                if (svgContent) {
-                    const files = this._storeBadgeAssets(cacheKey, svgContent);
-                    pngPath = files.pngPath;
-                }
+            if (percentage === null)
+                percentage = this._uptimeTracker?.uptimePercent(rawId) ?? null;
 
-                monitor.uptime24h = percentage;
-                monitor.badgeIconPath = pngPath;
-                this._badgeCache.set(cacheKey, {
-                    value: monitor.uptime24h,
-                    pngPath,
-                    timestamp: Date.now(),
-                });
+            monitor.uptime24h = percentage;
+            monitor.badgeIconPath = null;
+
+            if (percentage === null)
+                return;
+
+            try {
+                const badge = await this._renderUptimeBadge(cacheKey, percentage);
+                monitor.badgeIconPath = badge.path;
+                monitor.badgeIconWidth = badge.width;
             } catch (error) {
-                this._log('debug', `Failed to fetch uptime badge for ${cacheKey}: ${error.message}`);
-                monitor.uptime24h = null;
-                monitor.badgeIconPath = null;
+                this._log('debug', `Failed to render uptime badge (${cacheKey}): ${error.message}`);
             }
         });
 
         await Promise.all(tasks);
+    }
+
+    async _renderUptimeBadge(cacheKey, percentage) {
+        const rounded = Math.round(percentage * 100) / 100;
+        const badgeCacheKey = `${cacheKey}:${rounded}`;
+        const cached = this._badgeCache.get(badgeCacheKey);
+        if (cached?.pngPath && await fileExists(cached.pngPath, this._ioCancellable))
+            return { path: cached.pngPath, width: cached.width };
+
+        const { svg, width } = buildUptimeBadgeSvg(percentage);
+        const pngPath = await this._writeBadgePng(badgeCacheKey, svg);
+        this._badgeCache.set(badgeCacheKey, { pngPath, width, timestamp: Date.now() });
+        return { path: pngPath, width };
     }
 
     _updateSummary(monitors) {

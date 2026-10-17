@@ -4,7 +4,7 @@
 
 ![GNOME Shell Extension](https://img.shields.io/badge/GNOME%20Shell-46%20%7C%2047%20%7C%2048%20%7C%2049%20%7C%2050%20%7C%2051-blue?style=flat-square&logo=gnome)
 ![License](https://img.shields.io/badge/license-CC--BY--NC--SA%204.0-green?style=flat-square)
-![Version](https://img.shields.io/badge/version-1.5.5-orange?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.6.0-orange?style=flat-square)
 
 **Monitor your [Uptime Kuma](https://github.com/louislam/uptime-kuma) services directly from your GNOME desktop.**
 
@@ -38,12 +38,18 @@
 - **🧪 Demo Mode**: Test the UI with mock data before connecting to your instance
 - **🔍 Keyboard-First Search**: Quickly filter monitors inside the dropdown via inline search with substring matching
 
-## 🆕 What's New in 1.5.5
+## 🆕 What's New in 1.6.0
 
-- 🐚 **GNOME Shell 51 support.** GNOME 51 removed `St.BoxLayout:vertical`, which stopped the extension from loading at all. Layouts now use `orientation` on Shell 48+ and keep the old property on 46/47, so a single build works across 46–51. Thanks to [@kefahi](https://github.com/kefahi) for [#8](https://github.com/danst0/gnome-uptime-kuma/pull/8).
+- 🏷️ **Uptime badges now work — and no longer show "N/A".** The badge feature used Uptime Kuma's public badge API, which only answers for monitors in *public groups* and only with numeric monitor IDs. In metrics mode (the default) Uptime Kuma 1.23 does not expose monitor IDs at all, so every badge came back as a grey "N/A" chip. Badges are now rendered locally from real uptime data, colored green/yellow/red like a shields.io badge, and are only shown when a percentage is actually known.
+- 📈 **New uptime tracker.** The extension now keeps its own rolling 24-hour status history in `~/.cache/uptime-kuma-indicator/uptime-history.json`, so uptime percentages work for private monitors and any API mode without relying on Uptime Kuma's public badge endpoint. After a couple of poll cycles the badges fill in with real numbers.
+- 🔢 **Reads `monitor_uptime_ratio` from Prometheus metrics.** When your Uptime Kuma is new enough to export uptime ratios, those are preferred and appear immediately without waiting for the tracker to warm up.
 
 <details>
 <summary>Earlier releases</summary>
+
+### 1.5.5
+
+- 🐚 **GNOME Shell 51 support.** GNOME 51 removed `St.BoxLayout:vertical`, which stopped the extension from loading at all. Layouts now use `orientation` on Shell 48+ and keep the old property on 46/47, so a single build works across 46–51. Thanks to [@kefahi](https://github.com/kefahi) for [#8](https://github.com/danst0/gnome-uptime-kuma/pull/8).
 
 ### 1.5.4
 

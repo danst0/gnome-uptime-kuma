@@ -295,6 +295,11 @@ export function normalizeMetrics(text) {
         case 'monitor_cert_is_valid':
             monitor._certValid = value === 1;
             break;
+        case 'monitor_uptime_ratio': {
+            if (Number.isFinite(value) && value >= 0 && value <= 1)
+                monitor.uptime24h = value * 100;
+            break;
+        }
         default:
             break;
         }
